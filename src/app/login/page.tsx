@@ -1,0 +1,171 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Shield, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+
+export default function LoginPage() {
+  const [email, setEmail] = useState('admin@gatekeeper.com');
+  const [password, setPassword] = useState('admin123');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const { refreshUser, theme, toggleTheme } = useAuth();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Invalid email or password');
+      }
+
+      await refreshUser();
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err?.message || 'Login failed. Please check credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased relative overflow-hidden transition-colors">
+      {/* Top right Theme Toggle */}
+      <div className="absolute top-4 right-4 z-20">
+        <button
+          onClick={toggleTheme}
+          className="p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+        >
+          {theme === 'dark' ? (
+            <span className="text-amber-400">☀ Light</span>
+          ) : (
+            <span className="text-indigo-600">🌙 Dark</span>
+          )}
+        </button>
+      </div>
+
+      {/* Background Glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-md relative z-10 space-y-6">
+        {/* Brand Card */}
+        <div className="text-center space-y-2">
+          <div className="inline-flex p-3 rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-500/20 mb-2">
+            <Shield className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+            GATE KEEPER
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+            Enterprise Visitor &amp; Gate Access Control System
+          </p>
+        </div>
+
+        {/* Login Form Box */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 sm:p-8 shadow-xl space-y-5">
+          <div className="border-b border-slate-200 dark:border-slate-800 pb-3">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">Authorized Access</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Sign in with your guard or administrator account
+            </p>
+          </div>
+
+          {error && (
+            <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2.5">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@gatekeeper.com"
+                  required
+                  className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {loading ? (
+                <span>Authenticating...</span>
+              ) : (
+                <>
+                  <span>Sign In</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Quick Credential Hint */}
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 space-y-1">
+            <span className="font-semibold text-slate-800 dark:text-slate-200 block">Default Credentials:</span>
+            <p>Admin: <span className="text-blue-600 dark:text-blue-400 font-mono">admin@gatekeeper.com</span> / <span className="text-blue-600 dark:text-blue-400 font-mono">admin123</span></p>
+          </div>
+
+          <div className="text-center pt-2 text-xs text-slate-500 dark:text-slate-400">
+            Don&apos;t have an account?{' '}
+            <Link
+              href="/signup"
+              className="font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline underline-offset-4"
+            >
+              Register here
+            </Link>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-[11px] text-slate-500 dark:text-slate-500 font-medium">
+          Gate Keeper v2.0 • Secured with Single-Tenant Database &amp; Audit Logging
+        </p>
+      </div>
+    </div>
+  );
+}

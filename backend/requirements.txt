@@ -1,0 +1,18 @@
+# Core Web Framework
+fastapi==0.141.1
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+
+# OCR Engine & Machine Learning
+paddlepaddle==3.3.1
+paddleocr==3.7.0
+paddlex==3.7.2
+
+# Image Processing
+pillow==12.3.0
+opencv-contrib-python==4.10.0.84
+numpy==2.3.5
+
+# Utilities
+requests==2.34.2
+pydantic==2.13.5

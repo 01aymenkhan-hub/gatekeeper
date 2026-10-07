@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+}
+
+enum GateType {
+  ENTRY
+  EXIT
+  BOTH
+}
+
+enum PersonCategory {
+  VISITOR
+  VENDOR
+  INTERVIEW
+  SPECIAL_GUEST
+  CONTRACTOR
+  DELIVERY
+}
+
+enum VisitStatus {
+  CHECKED_IN
+  CHECKED_OUT
+  OVERSTAY
+}
+
+model User {
+  id           String           @id @default(cuid())
+  email        String           @unique
+  passwordHash String
+  name         String
+  role         Role             @default(OPERATOR)
+  active       Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  gateAccess   UserGateAccess[]
+  checkIns     Visit[]          @relation("CheckedInBy")
+  checkOuts    Visit[]          @relation("CheckedOutBy")
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Gate {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  type        GateType         @default(BOTH)
+  active      Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  userAccess  UserGateAccess[]
+  entryVisits Visit[]          @relation("EntryGate")
+  exitVisits  Visit[]          @relation("ExitGate")
+
+  @@map("gates")
+}
+
+model UserGateAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  gateId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gate      Gate     @relation(fields: [gateId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, gateId])
+  @@map("user_gate_access")
+}
+
+model Person {
+  id                 String         @id @default(cuid())
+  category           PersonCategory @default(VISITOR)
+  fullName           String
+  fatherHusbandName  String?
+  cnicNumber         String?        @unique
+  dlsNumber          String?        @unique
+  gender             String?
+  dateOfBirth        String?
+  dateOfIssue        String?
+  dateOfExpiry       String?
+  licensingAuthority String?
+  identification     String?
+  presentAddress     String?
+  permanentAddress   String?
+  phoneNumber        String?
+  photoUrl           String?
+  company            String?
+  belongings         String?
+  isVip              Boolean        @default(false)
+  isBlacklisted      Boolean        @default(false)
+  blacklistReason    String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  visits             Visit[]
+
+  @@index([fullName])
+  @@index([cnicNumber])
+  @@index([dlsNumber])
+  @@index([phoneNumber])
+  @@index([category])
+  @@map("persons")
+}
+
+model Visit {
+  id             String      @id @default(cuid())
+  visitNumber    String      @unique
+  passCode       String?     @unique
+  personId       String
+  person         Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  hostName       String
+  department     String
+  purpose        String?
+  visitorCardNo  String?
+  vehicleNo      String?
+  belongings     String?
+  status         VisitStatus @default(CHECKED_IN)
+  checkInTime    DateTime    @default(now())
+  checkOutTime   DateTime?
+  entryGateId    String
+  entryGate      Gate        @relation("EntryGate", fields: [entryGateId], references: [id])
+  exitGateId     String?
+  exitGate       Gate?       @relation("ExitGate", fields: [exitGateId], references: [id])
+  checkedInById  String
+  checkedInBy    User        @relation("CheckedInBy", fields: [checkedInById], references: [id])
+  checkedOutById String?
+  checkedOutBy   User?       @relation("CheckedOutBy", fields: [checkedOutById], references: [id])
+  notes          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([personId])
+  @@index([status])
+  @@index([checkInTime])
+  @@index([visitorCardNo])
+  @@index([passCode])
+  @@index([hostName])
+  @@index([department])
+  @@map("visits")
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  action        String
+  entityType    String
+  entityId      String?
+  details       String?
+  performedById String?
+  performedBy   User?    @relation(fields: [performedById], references: [id], onDelete: SetNull)
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+
+  @@index([action])
+  @@index([entityType])
+  @@index([performedById])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
