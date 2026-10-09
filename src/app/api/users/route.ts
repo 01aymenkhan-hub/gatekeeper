@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser, hashPassword } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { generateQrDataUrl } from '@/lib/qrUtils';
+import {
+  generateOperatorQrToken,
+  hashOperatorQrToken,
+  encryptOperatorQrToken,
+} from '@/lib/operatorQr';
 
 export async function GET() {
   try {
@@ -10,7 +16,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized: Admin role required' }, { status: 403 });
     }
 
-    const users = await prisma.user.findMany({
+    const dbUsers = await prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -18,6 +24,10 @@ export async function GET() {
         email: true,
         role: true,
         active: true,
+        operatorNumber: true,
+        qrLoginHash: true,
+        qrLoginCreatedAt: true,
+        qrLoginRevokedAt: true,
         createdAt: true,
         gateAccess: {
           include: {
@@ -28,6 +38,19 @@ export async function GET() {
         },
       },
     });
+
+    const users = dbUsers.map((u) => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      active: u.active,
+      operatorNumber: u.operatorNumber || (u.role === 'OPERATOR' ? `OP-${u.id.slice(-6).toUpperCase()}` : null),
+      hasActiveQr: Boolean(u.qrLoginHash && !u.qrLoginRevokedAt),
+      qrLoginRevokedAt: u.qrLoginRevokedAt,
+      createdAt: u.createdAt,
+      gateAccess: u.gateAccess,
+    }));
 
     return NextResponse.json({ success: true, users });
   } catch (error: any) {
@@ -57,6 +80,20 @@ export async function POST(request: NextRequest) {
     }
 
     const passwordHash = await hashPassword(password);
+    const isOperator = role !== 'ADMIN';
+
+    let operatorNumber: string | null = null;
+    let qrLoginHash: string | null = null;
+    let qrLoginEncrypted: string | null = null;
+    let rawToken: string | null = null;
+
+    if (isOperator) {
+      const opCount = await prisma.user.count({ where: { role: 'OPERATOR' } });
+      operatorNumber = `OP-${String(1001 + opCount).padStart(4, '0')}`;
+      rawToken = generateOperatorQrToken();
+      qrLoginHash = hashOperatorQrToken(rawToken);
+      qrLoginEncrypted = encryptOperatorQrToken(rawToken);
+    }
 
     const newUser = await prisma.user.create({
       data: {
@@ -65,6 +102,10 @@ export async function POST(request: NextRequest) {
         passwordHash,
         role: role === 'ADMIN' ? 'ADMIN' : 'OPERATOR',
         active: true,
+        operatorNumber,
+        qrLoginHash,
+        qrLoginEncrypted,
+        qrLoginCreatedAt: isOperator ? new Date() : null,
         gateAccess: Array.isArray(gateIds) && gateIds.length > 0
           ? {
               create: gateIds.map((gateId: string) => ({ gateId })),
@@ -82,9 +123,24 @@ export async function POST(request: NextRequest) {
       action: 'CREATE_USER',
       entityType: 'User',
       entityId: newUser.id,
-      details: { email: newUser.email, role: newUser.role },
+      details: { email: newUser.email, role: newUser.role, operatorNumber },
       performedById: user.id,
     });
+
+    let qrCard: any = null;
+    if (isOperator && rawToken) {
+      const qrDataUrl = await generateQrDataUrl(rawToken);
+      qrCard = {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        operatorNumber: newUser.operatorNumber,
+        qrDataUrl,
+        createdAt: newUser.qrLoginCreatedAt,
+        isRevoked: false,
+        active: newUser.active,
+      };
+    }
 
     return NextResponse.json({
       success: true,
@@ -94,8 +150,10 @@ export async function POST(request: NextRequest) {
         email: newUser.email,
         role: newUser.role,
         active: newUser.active,
+        operatorNumber: newUser.operatorNumber,
         gateAccess: newUser.gateAccess,
       },
+      qrCard,
     });
   } catch (error: any) {
     console.error('Error creating user:', error);

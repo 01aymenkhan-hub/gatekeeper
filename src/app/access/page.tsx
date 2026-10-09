@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import AdminGuard from '@/components/auth/AdminGuard';
-import { UserCog, UserPlus, Shield, Check, X, Building, Key, Pencil, CheckCircle2, Loader2 } from 'lucide-react';
+import { UserCog, UserPlus, Shield, Check, X, Building, Key, Pencil, CheckCircle2, Loader2, QrCode } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import OperatorQrCardModal, { OperatorQrCardData } from '@/components/modals/OperatorQrCardModal';
 
 type ModalMode = 'create' | 'edit';
 
@@ -14,6 +15,11 @@ export default function AccessManagementPage() {
   const [gates, setGates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  // Operator QR Card Modal State
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [activeQrCard, setActiveQrCard] = useState<OperatorQrCardData | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
 
   // Modal State (reused for Create Member and Edit Member)
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -154,6 +160,12 @@ export default function AccessManagementPage() {
         setIsModalOpen(false);
         showNotification('Member created successfully.');
         loadData();
+
+        // If newly created user is an operator with a generated QR card, display it immediately
+        if (data.qrCard) {
+          setActiveQrCard(data.qrCard);
+          setIsQrModalOpen(true);
+        }
       } else {
         // Edit Mode
         if (!name.trim() || !email.trim()) {
@@ -192,6 +204,47 @@ export default function AccessManagementPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleOpenQrCard = async (userId: string) => {
+    setQrLoading(true);
+    try {
+      const res = await fetch(`/api/users/${userId}/qr`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch QR card');
+      setActiveQrCard(data.card);
+      setIsQrModalOpen(true);
+    } catch (err: any) {
+      alert(err?.message || 'Error loading operator QR card');
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const handleRegenerateQr = async (userId: string) => {
+    const res = await fetch(`/api/users/${userId}/qr`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'regenerate' }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to regenerate QR card');
+    setActiveQrCard(data.card);
+    showNotification('Operator QR card regenerated successfully.');
+    loadData();
+  };
+
+  const handleRevokeQr = async (userId: string) => {
+    const res = await fetch(`/api/users/${userId}/qr`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'revoke' }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to revoke QR card');
+    setActiveQrCard((prev) => (prev ? { ...prev, isRevoked: true } : null));
+    showNotification('Operator QR card revoked successfully.');
+    loadData();
   };
 
   const handleToggleActive = async (userId: string, currentActive: boolean) => {
@@ -282,7 +335,14 @@ export default function AccessManagementPage() {
                     users.map((u) => (
                       <tr key={u.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="px-5 py-3.5">
-                          <p className="font-bold text-slate-900 dark:text-white">{u.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900 dark:text-white">{u.name}</p>
+                            {u.operatorNumber && (
+                              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                {u.operatorNumber}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[11px] text-slate-400">{u.email}</p>
                         </td>
 
@@ -335,6 +395,19 @@ export default function AccessManagementPage() {
 
                         <td className="px-5 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* QR Card Action Button for Operators */}
+                            {u.role === 'OPERATOR' && (
+                              <button
+                                onClick={() => handleOpenQrCard(u.id)}
+                                disabled={qrLoading}
+                                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                                title="View or Print Operator Login QR Card"
+                              >
+                                <QrCode className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                                <span>QR Card</span>
+                              </button>
+                            )}
+
                             {/* Edit Action Button */}
                             <button
                               onClick={() => handleOpenEdit(u)}
@@ -550,6 +623,15 @@ export default function AccessManagementPage() {
             </div>
           </div>
         )}
+
+        {/* Dedicated Operator QR Access Badge Card Modal */}
+        <OperatorQrCardModal
+          isOpen={isQrModalOpen}
+          onClose={() => setIsQrModalOpen(false)}
+          cardData={activeQrCard}
+          onRegenerate={handleRegenerateQr}
+          onRevoke={handleRevokeQr}
+        />
       </AdminGuard>
     </AppLayout>
   );

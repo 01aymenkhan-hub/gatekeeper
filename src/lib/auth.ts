@@ -49,7 +49,25 @@ export async function getSessionUser(): Promise<AuthUser | null> {
     const cookieStore = await cookies();
     const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
     if (!token) return null;
-    return verifyToken(token);
+    const decoded = verifyToken(token);
+    if (!decoded || !decoded.id) return null;
+
+    // Authoritative server-side check: deactivate access immediately if user is marked inactive
+    const dbUser = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, email: true, name: true, role: true, active: true },
+    });
+
+    if (!dbUser || !dbUser.active) {
+      return null;
+    }
+
+    return {
+      ...decoded,
+      name: dbUser.name,
+      email: dbUser.email,
+      role: dbUser.role,
+    };
   } catch {
     return null;
   }
