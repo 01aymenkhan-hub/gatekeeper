@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { LayoutProvider } from "@/context/LayoutContext";
+import { LanguageProvider } from "@/context/LanguageContext";
 
 export const metadata: Metadata = {
   title: "GATE KEEPER - Enterprise Visitor & Gate Management System",
@@ -33,7 +34,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col antialiased">
         <AuthProvider>
-          <LayoutProvider>{children}</LayoutProvider>
+          <LayoutProvider>
+            <LanguageProvider>{children}</LanguageProvider>
+          </LayoutProvider>
         </AuthProvider>
       </body>
     </html>

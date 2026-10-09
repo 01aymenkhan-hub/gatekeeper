@@ -24,9 +24,15 @@ interface CheckOutModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  initialVisit?: any;
 }
 
-export default function CheckOutModal({ isOpen, onClose, onSuccess }: CheckOutModalProps) {
+export default function CheckOutModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  initialVisit,
+}: CheckOutModalProps) {
   const { currentGate } = useAuth();
   const [checkoutMode, setCheckoutMode] = useState<'search' | 'qr'>('search');
   const [identifier, setIdentifier] = useState('');
@@ -36,8 +42,16 @@ export default function CheckOutModal({ isOpen, onClose, onSuccess }: CheckOutMo
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [activeVisit, setActiveVisit] = useState<any>(null);
+  const [activeVisit, setActiveVisit] = useState<any>(initialVisit || null);
   const [alreadyCheckedOutRecord, setAlreadyCheckedOutRecord] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (isOpen && initialVisit) {
+      setActiveVisit(initialVisit);
+      setError(null);
+      setSuccessMessage(null);
+    }
+  }, [isOpen, initialVisit]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
