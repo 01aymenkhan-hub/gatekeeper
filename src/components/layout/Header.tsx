@@ -37,6 +37,7 @@ export default function Header({
   const { user, currentGate, setCurrentGate, theme, toggleTheme, logout } = useAuth();
   const { toggleMobileSidebar } = useLayout();
   const { language, toggleLanguage, t } = useLanguage();
+  const isAdmin = user?.role === 'ADMIN';
 
   const [gates, setGates] = useState<Gate[]>([]);
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -81,7 +82,7 @@ export default function Header({
         })
       );
       setCurrentDate(
-        now.toLocaleDateString(language === 'ur' ? 'ur-PK' : 'en-US', {
+        now.toLocaleDateString(isAdmin || language !== 'ur' ? 'en-US' : 'ur-PK', {
           weekday: 'short',
           month: 'short',
           day: 'numeric',
@@ -92,7 +93,7 @@ export default function Header({
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
-  }, [language]);
+  }, [language, isAdmin]);
 
   useEffect(() => {
     const loadGates = async () => {
@@ -156,11 +157,11 @@ export default function Header({
               <div className="flex items-center gap-1.5 leading-none mb-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">
-                  {t('active_gate', 'Active Gate')}
+                  {isAdmin ? 'Active Gate' : t('active_gate', 'Active Gate')}
                 </span>
               </div>
               <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[110px] sm:max-w-[130px] md:max-w-[150px] lg:max-w-[130px] xl:max-w-[200px]">
-                {currentGate?.name || t('select_gate', 'Select Gate')}
+                {currentGate?.name || (isAdmin ? 'Select Gate' : t('select_gate', 'Select Gate'))}
               </div>
             </div>
 
@@ -182,14 +183,12 @@ export default function Header({
           {isGateOpen && (
             <div className="absolute left-0 mt-2 w-72 sm:w-80 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
               <div className="p-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-850/60 flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                    {t('switch_gate', 'Switch Active Gate')}
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    {gates.length} {t('all_gates', 'Gates Available')}
-                  </p>
-                </div>
+                <span className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  {isAdmin ? 'Switch Active Gate' : t('switch_gate', 'Switch Active Gate')}
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+                  {gates.length} {isAdmin ? 'Gates' : t('all_gates', 'Gates')}
+                </span>
               </div>
 
               <div className="p-1.5 max-h-64 overflow-y-auto space-y-1">
@@ -279,127 +278,194 @@ export default function Header({
         </div>
       </div>
 
-      {/* Right: Language Selector, Theme Toggle, Profile Dropdown & Actions */}
-      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        
-        {/* Visible Language Switch Button (Urdu / English) */}
-        <button
-          onClick={toggleLanguage}
-          type="button"
-          className="px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
-          title={language === 'ur' ? 'Switch to English' : 'اردو میں دیکھیں'}
-          aria-label="Switch Language"
-        >
-          <Languages className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-          <span className="font-semibold">{language === 'ur' ? 'English' : 'اردو'}</span>
-        </button>
-
-        {/* Quick Theme Toggle Button */}
-        <button
-          onClick={toggleTheme}
-          type="button"
-          className="p-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
-          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
-          aria-label="Toggle theme"
-        >
-          {theme === 'dark' ? (
-            <Sun className="w-3.5 h-3.5 text-amber-400" />
-          ) : (
-            <Moon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-          )}
-        </button>
-
-        {/* Desktop / Tablet Profile Menu Dropdown */}
-        <div ref={profileDropdownRef} className="relative hidden sm:block">
+      {/* Right: Actions Scoped by Role */}
+      {isAdmin ? (
+        /* ================= ORIGINAL ADMIN HEADER CONTROLS ================= */
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Quick Theme Toggle Button */}
           <button
-            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            onClick={toggleTheme}
             type="button"
-            className="flex items-center gap-2 p-1.5 pl-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all cursor-pointer shadow-2xs"
-            aria-expanded={isProfileOpen}
-            aria-label="User Profile"
+            className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+            aria-label="Toggle theme"
           >
-            <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-              {user?.name ? user.name[0].toUpperCase() : <User className="w-3.5 h-3.5" />}
-            </div>
-            <div className="hidden lg:block text-left pr-1 min-w-0">
-              <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[110px]">
-                {user?.name || 'Operator'}
-              </p>
-              <p className="text-[10px] text-slate-400 leading-none mt-0.5">
-                {operatorDisplayNumber}
-              </p>
-            </div>
-            <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} />
+            {theme === 'dark' ? (
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+            ) : (
+              <Moon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+            )}
+            <span className="hidden xl:inline text-[11px] capitalize">{theme}</span>
           </button>
 
-          {/* Profile Dropdown Panel */}
-          {isProfileOpen && (
-            <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
-              <div className="p-3.5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-850/60 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                    {user?.role === 'ADMIN' ? t('role_admin', 'Administrator') : t('role_operator', 'Security Operator')}
-                  </span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
-                    {operatorDisplayNumber}
-                  </span>
-                </div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                  {user?.name}
-                </p>
-                <p className="text-[11px] text-slate-400 truncate">
-                  {user?.email}
-                </p>
-              </div>
+          {/* Check Status Button */}
+          <button
+            onClick={onOpenCheckStatus}
+            type="button"
+            className="p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+            title="Search visitor status"
+          >
+            <Search className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden sm:inline">Status</span>
+          </button>
 
-              <div className="p-2 space-y-1">
-                <div className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between rounded-xl bg-slate-50/60 dark:bg-slate-800/40">
-                  <span className="text-[11px] text-slate-400">{t('active_gate', 'Gate')}</span>
-                  <span className="font-bold text-slate-900 dark:text-white truncate max-w-[120px]">
-                    {currentGate?.name || 'All'}
-                  </span>
-                </div>
+          {/* Check Out Button */}
+          <button
+            onClick={onOpenCheckOut}
+            type="button"
+            className="p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+            title="Check out visitor"
+          >
+            <DoorClosed className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+            <span className="hidden sm:inline">Exit</span>
+          </button>
 
-                {/* Red Logout Action */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsProfileOpen(false);
-                    handleConfirmLogout();
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer text-left"
-                >
-                  <IconLogoutDoor className="w-4 h-4 text-rose-500" />
-                  <span>{t('logout', 'Logout')}</span>
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Add Vendor (Desktop only) */}
+          <button
+            onClick={() => onOpenCheckIn && onOpenCheckIn('VENDOR')}
+            type="button"
+            className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer"
+          >
+            <Briefcase className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+            <span>+ Vendor</span>
+          </button>
+
+          {/* Add Visitor (Primary Action) */}
+          <button
+            onClick={() => onOpenCheckIn && onOpenCheckIn('VISITOR')}
+            type="button"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shadow-blue-500/20 transition-all cursor-pointer"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">+ Visitor</span>
+            <span className="inline sm:hidden">+ Add</span>
+          </button>
         </div>
+      ) : (
+        /* ================= OPERATOR HEADER CONTROLS (Point 2) ================= */
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Visible Language Switch Button (Urdu / English) */}
+          <button
+            onClick={toggleLanguage}
+            type="button"
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+            title={language === 'ur' ? 'Switch to English' : 'اردو میں دیکھیں'}
+            aria-label="Switch Language"
+          >
+            <Languages className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span className="font-semibold">{language === 'ur' ? 'English' : 'اردو'}</span>
+          </button>
 
-        {/* Tablet/Desktop Primary Add Visitor Button */}
-        <button
-          onClick={() => onOpenCheckIn && onOpenCheckIn('VISITOR')}
-          type="button"
-          className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shadow-blue-500/20 transition-all cursor-pointer"
-        >
-          <UserPlus className="w-3.5 h-3.5" />
-          <span>{t('add_visitor_btn', '+ Add Visitor')}</span>
-        </button>
+          {/* Quick Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            type="button"
+            className="p-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-3.5 h-3.5 text-amber-400" />
+            ) : (
+              <Moon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+            )}
+          </button>
 
-        {/* MOBILE HEADER ONLY: Prominent Red Logout Button (Replaces standalone Add button as requested) */}
-        <button
-          onClick={handleConfirmLogout}
-          type="button"
-          className="sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs shadow-rose-600/30 transition-all cursor-pointer shrink-0 active:scale-95"
-          title={t('logout', 'Logout')}
-          aria-label={t('logout', 'Logout')}
-        >
-          <IconLogoutDoor className="w-4 h-4 text-white" />
-          <span>{language === 'ur' ? 'لاگ آؤٹ' : 'Exit'}</span>
-        </button>
+          {/* Desktop / Tablet Profile Menu Dropdown */}
+          <div ref={profileDropdownRef} className="relative hidden sm:block">
+            <button
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              type="button"
+              className="flex items-center gap-2 p-1.5 pl-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all cursor-pointer shadow-2xs"
+              aria-expanded={isProfileOpen}
+              aria-label="User Profile"
+            >
+              <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                {user?.name ? user.name[0].toUpperCase() : <User className="w-3.5 h-3.5" />}
+              </div>
+              <div className="hidden lg:block text-left pr-1 min-w-0">
+                <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate max-w-[110px]">
+                  {user?.name || 'Operator'}
+                </p>
+                <p className="text-[10px] text-slate-400 leading-none mt-0.5">
+                  {operatorDisplayNumber}
+                </p>
+              </div>
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
+                  isProfileOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
 
-      </div>
+            {/* Profile Dropdown Panel */}
+            {isProfileOpen && (
+              <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
+                <div className="p-3.5 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-850/60 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                      {user?.role === 'ADMIN'
+                        ? t('role_admin', 'Administrator')
+                        : t('role_operator', 'Security Operator')}
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold">
+                      {operatorDisplayNumber}
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                    {user?.name}
+                  </p>
+                  <p className="text-[11px] text-slate-400 truncate">{user?.email}</p>
+                </div>
+
+                <div className="p-2 space-y-1">
+                  <div className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between rounded-xl bg-slate-50/60 dark:bg-slate-800/40">
+                    <span className="text-[11px] text-slate-400">{t('active_gate', 'Gate')}</span>
+                    <span className="font-bold text-slate-900 dark:text-white truncate max-w-[120px]">
+                      {currentGate?.name || 'All'}
+                    </span>
+                  </div>
+
+                  {/* Red Logout Action */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      handleConfirmLogout();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer text-left"
+                  >
+                    <IconLogoutDoor className="w-4 h-4 text-rose-500" />
+                    <span>{t('logout', 'Logout')}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Tablet/Desktop Primary Add Visitor Button */}
+          <button
+            onClick={() => onOpenCheckIn && onOpenCheckIn('VISITOR')}
+            type="button"
+            className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shadow-blue-500/20 transition-all cursor-pointer"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>{t('add_visitor_btn', '+ Add Visitor')}</span>
+          </button>
+
+          {/* MOBILE HEADER ONLY: Prominent Red Logout Button (Replaces standalone Add button as requested) */}
+          <button
+            onClick={handleConfirmLogout}
+            type="button"
+            className="sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-xs shadow-rose-600/30 transition-all cursor-pointer shrink-0 active:scale-95"
+            title={t('logout', 'Logout')}
+            aria-label={t('logout', 'Logout')}
+          >
+            <IconLogoutDoor className="w-4 h-4 text-white" />
+            <span>{language === 'ur' ? 'لاگ آؤٹ' : 'Exit'}</span>
+          </button>
+        </div>
+      )}
     </header>
   );
 }
