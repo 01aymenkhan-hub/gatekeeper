@@ -19,6 +19,7 @@ import {
   Calendar,
   ChevronRight,
   TrendingUp,
+  Truck,
 } from 'lucide-react';
 import {
   IconRegisterVisitor,
@@ -532,21 +533,16 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => openCheckIn('VISITOR')}
-              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-white to-emerald-500/5 dark:from-emerald-950/40 dark:via-slate-900 dark:to-emerald-950/20 border-2 border-emerald-500/30 hover:border-emerald-500 dark:border-emerald-800 dark:hover:border-emerald-500 shadow-sm hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-200 text-left cursor-pointer flex flex-col justify-between min-h-[135px] sm:min-h-[150px]"
+              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-white to-emerald-500/5 dark:from-emerald-950/40 dark:via-slate-900 dark:to-emerald-950/20 border-2 border-emerald-500/30 hover:border-emerald-500 dark:border-emerald-800 dark:hover:border-emerald-500 shadow-sm hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
             >
-              <div className="flex items-start justify-between w-full">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30 group-hover:scale-110 transition-transform">
-                  <IconRegisterVisitor className="w-7 h-7 sm:w-8 sm:h-8" />
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
-                  + Entry
-                </span>
+              <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30 shrink-0">
+                <IconRegisterVisitor className="w-11 h-11 sm:w-12 sm:h-12" />
               </div>
-              <div className="mt-3">
-                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+              <div className="space-y-1">
+                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
                   {t('register_visitor')}
                 </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 leading-snug">
                   {t('register_visitor_desc')}
                 </p>
               </div>
@@ -559,21 +555,16 @@ export default function DashboardPage() {
                 setSelectedCheckoutVisit(null);
                 setIsCheckOutOpen(true);
               }}
-              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-white to-amber-500/5 dark:from-amber-950/40 dark:via-slate-900 dark:to-amber-950/20 border-2 border-amber-500/30 hover:border-amber-500 dark:border-amber-800 dark:hover:border-amber-500 shadow-sm hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-200 text-left cursor-pointer flex flex-col justify-between min-h-[135px] sm:min-h-[150px]"
+              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-white to-amber-500/5 dark:from-amber-950/40 dark:via-slate-900 dark:to-amber-950/20 border-2 border-amber-500/30 hover:border-amber-500 dark:border-amber-800 dark:hover:border-amber-500 shadow-sm hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
             >
-              <div className="flex items-start justify-between w-full">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 group-hover:scale-110 transition-transform">
-                  <IconCheckoutVisitor className="w-7 h-7 sm:w-8 sm:h-8 text-slate-950" />
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-900 dark:text-amber-300">
-                  Exit
-                </span>
+              <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
+                <IconCheckoutVisitor className="w-11 h-11 sm:w-12 sm:h-12 text-slate-950" />
               </div>
-              <div className="mt-3">
-                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+              <div className="space-y-1">
+                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
                   {t('checkout_visitor')}
                 </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 leading-snug">
                   {t('checkout_visitor_desc')}
                 </p>
               </div>
@@ -583,21 +574,16 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => setIsCheckStatusOpen(true)}
-              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 via-white to-blue-500/5 dark:from-blue-950/40 dark:via-slate-900 dark:to-blue-950/20 border-2 border-blue-500/30 hover:border-blue-500 dark:border-blue-800 dark:hover:border-blue-500 shadow-sm hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-200 text-left cursor-pointer flex flex-col justify-between min-h-[135px] sm:min-h-[150px]"
+              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 via-white to-blue-500/5 dark:from-blue-950/40 dark:via-slate-900 dark:to-blue-950/20 border-2 border-blue-500/30 hover:border-blue-500 dark:border-blue-800 dark:hover:border-blue-500 shadow-sm hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
             >
-              <div className="flex items-start justify-between w-full">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30 group-hover:scale-110 transition-transform">
-                  <IconCheckStatus className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-900 dark:text-blue-300">
-                  Verify
-                </span>
+              <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30 shrink-0">
+                <IconCheckStatus className="w-11 h-11 sm:w-12 sm:h-12 text-white" />
               </div>
-              <div className="mt-3">
-                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+              <div className="space-y-1">
+                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
                   {t('check_status')}
                 </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 leading-snug">
                   {t('check_status_desc')}
                 </p>
               </div>
@@ -607,29 +593,24 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => openCheckIn('VENDOR')}
-              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 via-white to-purple-500/5 dark:from-purple-950/40 dark:via-slate-900 dark:to-purple-950/20 border-2 border-purple-500/30 hover:border-purple-500 dark:border-purple-800 dark:hover:border-purple-500 shadow-sm hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-200 text-left cursor-pointer flex flex-col justify-between min-h-[135px] sm:min-h-[150px]"
+              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 via-white to-purple-500/5 dark:from-purple-950/40 dark:via-slate-900 dark:to-purple-950/20 border-2 border-purple-500/30 hover:border-purple-500 dark:border-purple-800 dark:hover:border-purple-500 shadow-sm hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
             >
-              <div className="flex items-start justify-between w-full">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-500/30 group-hover:scale-110 transition-transform">
-                  <IconAddVendor className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/60 text-purple-900 dark:text-purple-300">
-                  Supply
-                </span>
+              <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-500/30 shrink-0">
+                <IconAddVendor className="w-11 h-11 sm:w-12 sm:h-12 text-white" />
               </div>
-              <div className="mt-3">
-                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-tight">
+              <div className="space-y-1">
+                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
                   {t('add_vendor')}
                 </p>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 leading-snug">
                   {t('add_vendor_desc')}
                 </p>
               </div>
             </button>
           </div>
 
-          {/* Operator KPI Grid (Opens Category Records Modal) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+          {/* Operator KPI Grid (Two Columns on Mobile, Four on Desktop) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             {/* 1. Total Today */}
             <button
               type="button"
@@ -642,25 +623,21 @@ export default function DashboardPage() {
                   gateId: currentGate?.id,
                 })
               }
-              className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md transition-all cursor-pointer text-left group"
+              className="p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md transition-all cursor-pointer flex flex-col items-center justify-center text-center group min-h-[150px] sm:min-h-[165px]"
               title="Click to view all visitor records today"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                  {t('total_visitors_today')}
-                </span>
-                <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
-                  <Users className="w-4 h-4" />
-                </div>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2.5 shrink-0">
+                <Users className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
-              <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-                  {stats?.totalToday || 0}
-                </span>
-                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center">
-                  <TrendingUp className="w-3 h-3 mr-0.5" /> {t('live_indicator')}
-                </span>
-              </div>
+              <span className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
+                {t('total_visitors_today')}
+              </span>
+              <span className="mt-1.5 text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white leading-none">
+                {stats?.totalToday || 0}
+              </span>
+              <span className="mt-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1">
+                <TrendingUp className="w-3.5 h-3.5" /> {t('live_indicator')}
+              </span>
             </button>
 
             {/* 2. Currently Inside */}
@@ -676,26 +653,22 @@ export default function DashboardPage() {
                   gateId: currentGate?.id,
                 })
               }
-              className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md transition-all cursor-pointer text-left group"
+              className="p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md transition-all cursor-pointer flex flex-col items-center justify-center text-center group min-h-[150px] sm:min-h-[165px]"
               title="Click to view all visitors currently inside"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                  {t('currently_inside')}
-                </span>
-                <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform">
-                  <DoorOpen className="w-4 h-4" />
-                </div>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2.5 shrink-0">
+                <DoorOpen className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
-              <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-                  {stats?.currentlyInside || 0}
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  {t('active_on_site')}
-                </span>
-              </div>
+              <span className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-snug">
+                {t('currently_inside')}
+              </span>
+              <span className="mt-1.5 text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white leading-none">
+                {stats?.currentlyInside || 0}
+              </span>
+              <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                {t('active_on_site')}
+              </span>
             </button>
 
             {/* 3. Check-outs */}
@@ -711,25 +684,21 @@ export default function DashboardPage() {
                   gateId: currentGate?.id,
                 })
               }
-              className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 hover:shadow-md transition-all cursor-pointer text-left group"
+              className="p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:border-slate-400 dark:hover:border-slate-600 hover:shadow-md transition-all cursor-pointer flex flex-col items-center justify-center text-center group min-h-[150px] sm:min-h-[165px]"
               title="Click to view checked-out visitors"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">
-                  {t('total_checkouts')}
-                </span>
-                <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:scale-110 transition-transform">
-                  <DoorClosed className="w-4 h-4" />
-                </div>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center mb-2.5 shrink-0">
+                <DoorClosed className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
-              <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-                  {stats?.totalCheckOutsToday || 0}
-                </span>
-                <span className="text-[11px] font-semibold text-slate-400">
-                  {t('exited_premises')}
-                </span>
-              </div>
+              <span className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100 transition-colors leading-snug">
+                {t('total_checkouts')}
+              </span>
+              <span className="mt-1.5 text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white leading-none">
+                {stats?.totalCheckOutsToday || 0}
+              </span>
+              <span className="mt-1.5 text-[11px] font-semibold text-slate-400">
+                {t('exited_premises')}
+              </span>
             </button>
 
             {/* 4. Overstay Alert */}
@@ -745,30 +714,27 @@ export default function DashboardPage() {
                   gateId: currentGate?.id,
                 })
               }
-              className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:border-rose-400 dark:hover:border-rose-600 hover:shadow-md transition-all cursor-pointer text-left group"
+              className="p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:border-rose-400 dark:hover:border-rose-600 hover:shadow-md transition-all cursor-pointer flex flex-col items-center justify-center text-center group min-h-[150px] sm:min-h-[165px]"
               title="Click to view overstay visitors"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
-                  {t('overstay_alerts')}
-                </span>
-                <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform">
-                  <AlertTriangle className="w-4 h-4" />
-                </div>
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-2.5 shrink-0">
+                <AlertTriangle className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
-              <div className="mt-2 flex items-baseline justify-between">
-                <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
-                  {stats?.overstayCount || 0}
-                </span>
-                <span className="text-[11px] font-semibold text-slate-400">
-                  {t('flagged_badges')}
-                </span>
-              </div>
+              <span className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors leading-snug">
+                {t('overstay_alerts')}
+              </span>
+              <span className="mt-1.5 text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white leading-none">
+                {stats?.overstayCount || 0}
+              </span>
+              <span className="mt-1.5 text-[11px] font-semibold text-slate-400">
+                {t('flagged_badges')}
+              </span>
             </button>
           </div>
 
           {/* Secondary Category Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            {/* Vendors */}
             <button
               type="button"
               onClick={() =>
@@ -780,20 +746,21 @@ export default function DashboardPage() {
                   gateId: currentGate?.id,
                 })
               }
-              className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-sm flex items-center justify-between shadow-2xs cursor-pointer text-left group transition-all"
+              className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-sm flex flex-col items-center justify-center text-center shadow-2xs cursor-pointer group transition-all min-h-[130px] sm:min-h-[140px]"
               title="Click to view vendors"
             >
-              <div>
-                <span className="text-[11px] font-medium text-slate-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors block">
-                  {t('vendors')}
-                </span>
-                <span className="text-lg font-bold text-slate-800 dark:text-slate-200">
-                  {stats?.vendorsToday || 0}
-                </span>
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-2 shrink-0">
+                <Briefcase className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
-              <Briefcase className="w-4 h-4 text-slate-400 group-hover:text-purple-600 transition-colors" />
+              <span className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors leading-snug">
+                {t('vendors')}
+              </span>
+              <span className="mt-1 text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white leading-none">
+                {stats?.vendorsToday || 0}
+              </span>
             </button>
 
+            {/* Interviews */}
             <button
               type="button"
               onClick={() =>
@@ -805,20 +772,21 @@ export default function DashboardPage() {
                   gateId: currentGate?.id,
                 })
               }
-              className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-sm flex items-center justify-between shadow-2xs cursor-pointer text-left group transition-all"
+              className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-sm flex flex-col items-center justify-center text-center shadow-2xs cursor-pointer group transition-all min-h-[130px] sm:min-h-[140px]"
               title="Click to view interviews"
             >
-              <div>
-                <span className="text-[11px] font-medium text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors block">
-                  {t('interviews')}
-                </span>
-                <span className="text-lg font-bold text-slate-800 dark:text-slate-200">
-                  {stats?.interviewsToday || 0}
-                </span>
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2 shrink-0">
+                <UserCheck className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
-              <UserCheck className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+              <span className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
+                {t('interviews')}
+              </span>
+              <span className="mt-1 text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white leading-none">
+                {stats?.interviewsToday || 0}
+              </span>
             </button>
 
+            {/* Special Guests */}
             <button
               type="button"
               onClick={() =>
@@ -830,20 +798,21 @@ export default function DashboardPage() {
                   gateId: currentGate?.id,
                 })
               }
-              className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-sm flex items-center justify-between shadow-2xs cursor-pointer text-left group transition-all"
+              className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-sm flex flex-col items-center justify-center text-center shadow-2xs cursor-pointer group transition-all min-h-[130px] sm:min-h-[140px]"
               title="Click to view special guests"
             >
-              <div>
-                <span className="text-[11px] font-medium text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors block">
-                  {t('special_guests')}
-                </span>
-                <span className="text-lg font-bold text-slate-800 dark:text-slate-200">
-                  {stats?.specialGuestsToday || 0}
-                </span>
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2 shrink-0">
+                <Award className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
-              <Award className="w-4 h-4 text-slate-400 group-hover:text-amber-600 transition-colors" />
+              <span className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors leading-snug">
+                {t('special_guests')}
+              </span>
+              <span className="mt-1 text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white leading-none">
+                {stats?.specialGuestsToday || 0}
+              </span>
             </button>
 
+            {/* Deliveries */}
             <button
               type="button"
               onClick={() =>
@@ -855,18 +824,18 @@ export default function DashboardPage() {
                   gateId: currentGate?.id,
                 })
               }
-              className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-sm flex items-center justify-between shadow-2xs cursor-pointer text-left group transition-all"
+              className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-sm flex flex-col items-center justify-center text-center shadow-2xs cursor-pointer group transition-all min-h-[130px] sm:min-h-[140px]"
               title="Click to view deliveries"
             >
-              <div>
-                <span className="text-[11px] font-medium text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors block">
-                  {t('deliveries')}
-                </span>
-                <span className="text-lg font-bold text-slate-800 dark:text-slate-200">
-                  {stats?.deliveriesToday || 0}
-                </span>
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-2 shrink-0">
+                <Truck className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
-              <DoorClosed className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+              <span className="text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors leading-snug">
+                {t('deliveries')}
+              </span>
+              <span className="mt-1 text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white leading-none">
+                {stats?.deliveriesToday || 0}
+              </span>
             </button>
           </div>
 
@@ -877,38 +846,46 @@ export default function DashboardPage() {
               id="currently-inside-section"
               className="xl:col-span-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs min-w-0"
             >
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <h2 className="font-bold text-sm text-slate-900 dark:text-white">
-                    {t('currently_inside_facility')} ({stats?.activeVisitors?.length || 0})
-                  </h2>
+              <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3.5">
+                <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2.5 sm:gap-3.5">
+                  <div className="relative w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/80 flex items-center justify-center shrink-0">
+                    <IconCurrentlyInside className="w-7 h-7 sm:w-8 sm:h-8" />
+                    <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                      <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-snug">
+                        {t('currently_inside_facility')}
+                      </h2>
+                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-sm sm:text-base font-extrabold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        {stats?.activeVisitors?.length || 0}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                      {t('real_time_occupancy')}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 hidden sm:inline">
-                    {t('real_time_occupancy')}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCategoryModalConfig({
-                        isOpen: true,
-                        category: 'ALL',
-                        status: 'CHECKED_IN',
-                        titleKey: 'currently_inside_facility',
-                        defaultTitle: 'Currently Inside Facility',
-                        gateId: currentGate?.id,
-                      })
-                    }
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold transition-all cursor-pointer shadow-2xs"
-                    title="View all visitors currently inside in full-screen modal"
-                  >
-                    <IconCurrentlyInside className="w-3.5 h-3.5 shrink-0" />
-                    <span>{t('view_all')}</span>
-                    <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCategoryModalConfig({
+                      isOpen: true,
+                      category: 'ALL',
+                      status: 'CHECKED_IN',
+                      titleKey: 'currently_inside_facility',
+                      defaultTitle: 'Currently Inside Facility',
+                      gateId: currentGate?.id,
+                    })
+                  }
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold transition-all cursor-pointer shadow-sm shadow-emerald-600/20 shrink-0"
+                  title="View all visitors currently inside in full-screen modal"
+                >
+                  <IconCurrentlyInside className="w-5 h-5 shrink-0" />
+                  <span>{t('view_all')}</span>
+                  <ArrowUpRight className="w-4 h-4 shrink-0" />
+                </button>
               </div>
 
               <div className="overflow-x-auto">
@@ -1037,8 +1014,13 @@ export default function DashboardPage() {
                     )}
                   </>
                 ) : (
-                  <div className="p-12 text-center text-slate-400 text-xs">
-                    {t('no_visitors_inside')}
+                  <div className="p-10 sm:p-12 flex flex-col items-center justify-center text-center gap-2.5 text-slate-400">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center text-slate-400">
+                      <IconCurrentlyInside className="w-7 h-7" />
+                    </div>
+                    <p className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400">
+                      {t('no_visitors_inside')}
+                    </p>
                   </div>
                 )}
               </div>
@@ -1046,11 +1028,15 @@ export default function DashboardPage() {
 
             {/* Recent Activity (1 col) */}
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-4">
-              <div className="border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between">
-                <h2 className="font-bold text-sm text-slate-900 dark:text-white">
-                  {t('recent_activity')}
-                </h2>
-                <Clock className="w-4 h-4 text-slate-400" />
+              <div className="border-b border-slate-200 dark:border-slate-800 pb-3.5 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <Clock className="w-6 h-6" />
+                  </div>
+                  <h2 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                    {t('recent_activity')}
+                  </h2>
+                </div>
               </div>
 
               <div className="space-y-3">
