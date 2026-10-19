@@ -75,7 +75,7 @@ export function IconCheckoutVisitor({ className = 'w-8 h-8', size, ...props }: I
       {/* Outgoing Exit Arrow */}
       <path
         d="M19 28H32M32 28L28 24M32 28L28 32"
-        className="stroke-amber-500 dark:stroke-amber-400"
+        stroke="currentColor"
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"

@@ -153,8 +153,8 @@ export default function Header({
             </div>
 
             {/* Desktop label & full name */}
-            <div className="hidden sm:block min-w-0 pr-1">
-              <div className="flex items-center gap-1.5 leading-none mb-0.5">
+            <div className={`hidden sm:block min-w-0 pr-1 ${!isAdmin && language === 'ur' ? 'text-right' : 'text-left'}`}>
+              <div className={`flex items-center gap-1.5 leading-none mb-0.5 ${!isAdmin && language === 'ur' ? 'justify-end' : 'justify-start'}`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">
                   {isAdmin ? 'Active Gate' : t('active_gate', 'Active Gate')}

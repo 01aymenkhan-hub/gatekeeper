@@ -90,6 +90,61 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   switch_theme: { en: 'Switch Theme', ur: 'تھیم تبدیل کریں' },
   switch_language: { en: 'Language', ur: 'زبان' },
 
+  // Operator QR Login Screen & Scanner
+  operator_login_title: { en: 'Operator Login', ur: 'آپریٹر لاگ ان' },
+  operator_login_subtitle: {
+    en: 'Scan your physical Operator Access Card to open your checkpoint dashboard',
+    ur: 'ڈیش بورڈ کھولنے کے لیے اپنا آپریٹر کارڈ اسکین کریں',
+  },
+  auth_failed_title: { en: 'Authentication Failed', ur: 'لاگ ان نہیں ہو سکا' },
+  auth_failed_default: {
+    en: 'Login verification failed. Please scan your card again.',
+    ur: 'آپریٹر کارڈ کی تصدیق نہیں ہو سکی۔ براہ کرم دوبارہ اسکین کریں۔',
+  },
+  scan_your_qr_code: { en: 'Scan Your QR Code', ur: 'اپنا کیو آر کارڈ اسکین کریں' },
+  tap_to_open_camera: { en: 'Tap anywhere to open camera', ur: 'کیمرہ کھولنے کے لیے یہاں دبائیں' },
+  instant_mobile_login: {
+    en: 'Instant mobile login • No password required',
+    ur: 'فوری موبائل لاگ ان • پاس ورڈ کی ضرورت نہیں',
+  },
+  login_footer: {
+    en: 'Gate Keeper v2.0 • Checkpoint Access Control',
+    ur: 'گیٹ کیپر v2.0 • سیکیورٹی چیک پوائنٹ سسٹم',
+  },
+  starting_camera: { en: 'Starting Camera...', ur: 'کیمرہ کھل رہا ہے...' },
+  qr_code_detected: { en: 'QR Code Detected', ur: 'کیو آر کوڈ اسکین ہو گیا' },
+  verifying_credentials: {
+    en: 'Verifying Operator Credentials...',
+    ur: 'آپریٹر کارڈ کی تصدیق ہو رہی ہے...',
+  },
+  camera_access_error: { en: 'Camera Access Error', ur: 'کیمرہ چلنے میں مسئلہ' },
+  camera_permission_denied: {
+    en: 'Camera access denied. Please enable camera permission in your mobile browser.',
+    ur: 'کیمرہ کی اجازت نہیں ملی۔ براہ کرم موبائل براؤزر میں کیمرہ آن کریں۔',
+  },
+  camera_unavailable: {
+    en: 'Camera is currently unavailable. Ensure no other app is using it.',
+    ur: 'کیمرہ دستیاب نہیں ہے۔ یقینی بنائیں کہ کوئی دوسری ایپ کیمرہ استعمال نہ کر رہی ہو۔',
+  },
+  retry_camera: { en: 'Retry Camera', ur: 'دوبارہ کیمرہ چلائیں' },
+  position_qr_in_frame: {
+    en: 'Position your Operator QR Card in the center frame',
+    ur: 'اپنا آپریٹر کیو آر کارڈ درمیانی خانے کے سامنے رکھیں',
+  },
+  flip_camera: { en: 'Flip Camera', ur: 'کیمرہ تبدیل کریں' },
+  cancel_scan: { en: 'Cancel Scan', ur: 'اسکین بند کریں' },
+  theme_light: { en: 'Light', ur: 'لائٹ' },
+  theme_dark: { en: 'Dark', ur: 'ڈارک' },
+  visiting_host: { en: 'Visiting', ur: 'ملاقات:' },
+  gate_label: { en: 'Gate', ur: 'گیٹ' },
+  card_label: { en: 'Card', ur: 'کارڈ' },
+  check_in_badge: { en: 'CHECK-IN', ur: 'انٹری' },
+  check_out_badge: { en: 'CHECK-OUT', ur: 'چھٹی' },
+  no_records_hint: {
+    en: 'Try searching with a different visitor name, CNIC number, badge, or changing the status filter.',
+    ur: 'کسی دوسرے نام، شناختی کارڈ نمبر، یا پاس نمبر سے تلاش کریں۔',
+  },
+
   // Modals & Search
   search_placeholder: {
     en: 'Search by visitor name, CNIC, pass number, or phone...',

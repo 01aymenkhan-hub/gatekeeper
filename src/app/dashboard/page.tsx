@@ -488,8 +488,8 @@ export default function DashboardPage() {
         <div className="space-y-6">
           {/* Gate Control Hero Section */}
           <div className="rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 p-5 sm:p-7 text-white shadow-xl shadow-blue-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className={`space-y-1.5 w-full md:flex-1 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
+              <div className={`flex flex-wrap items-center gap-2 ${language === 'ur' ? 'justify-end' : 'justify-start'}`}>
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-200 bg-white/10 px-2.5 py-1 rounded-full inline-flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   {t('active_gate')}: {currentGate?.name || t('all_gates')}
@@ -503,7 +503,7 @@ export default function DashboardPage() {
               <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight">
                 {t('gate_control_dashboard')}
               </h1>
-              <p className="text-xs sm:text-sm text-blue-100 max-w-xl">
+              <p className={`text-xs sm:text-sm text-blue-100 max-w-xl ${language === 'ur' ? 'ml-auto' : ''}`}>
                 {t('gate_control_subtitle')}
               </p>
             </div>
@@ -514,7 +514,7 @@ export default function DashboardPage() {
                 <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
                   <Clock className="w-5 h-5 text-amber-300" />
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="font-mono text-sm sm:text-base font-extrabold tracking-wider text-white">
                     {currentTime || '--:--:--'}
                   </p>
@@ -536,9 +536,9 @@ export default function DashboardPage() {
               className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-white to-emerald-500/5 dark:from-emerald-950/40 dark:via-slate-900 dark:to-emerald-950/20 border-2 border-emerald-500/30 hover:border-emerald-500 dark:border-emerald-800 dark:hover:border-emerald-500 shadow-sm hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
             >
               <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30 shrink-0">
-                <IconRegisterVisitor className="w-11 h-11 sm:w-12 sm:h-12" />
+                <IconRegisterVisitor className="w-11 h-11 sm:w-12 sm:h-12 text-white" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 text-center">
                 <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
                   {t('register_visitor')}
                 </p>
@@ -557,10 +557,10 @@ export default function DashboardPage() {
               }}
               className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-white to-amber-500/5 dark:from-amber-950/40 dark:via-slate-900 dark:to-amber-950/20 border-2 border-amber-500/30 hover:border-amber-500 dark:border-amber-800 dark:hover:border-amber-500 shadow-sm hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
             >
-              <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
-                <IconCheckoutVisitor className="w-11 h-11 sm:w-12 sm:h-12 text-slate-950" />
+              <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
+                <IconCheckoutVisitor className="w-11 h-11 sm:w-12 sm:h-12 text-white" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 text-center">
                 <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
                   {t('checkout_visitor')}
                 </p>
@@ -579,7 +579,7 @@ export default function DashboardPage() {
               <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30 shrink-0">
                 <IconCheckStatus className="w-11 h-11 sm:w-12 sm:h-12 text-white" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 text-center">
                 <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
                   {t('check_status')}
                 </p>
@@ -598,7 +598,7 @@ export default function DashboardPage() {
               <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-500/30 shrink-0">
                 <IconAddVendor className="w-11 h-11 sm:w-12 sm:h-12 text-white" />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 text-center">
                 <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
                   {t('add_vendor')}
                 </p>
@@ -847,13 +847,13 @@ export default function DashboardPage() {
               className="xl:col-span-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs min-w-0"
             >
               <div className="px-5 sm:px-6 py-4 sm:py-5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3.5">
-                <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-2.5 sm:gap-3.5">
+                <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3.5">
                   <div className="relative w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/80 flex items-center justify-center shrink-0">
                     <IconCurrentlyInside className="w-7 h-7 sm:w-8 sm:h-8" />
                     <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
                   </div>
-                  <div>
-                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                  <div className={`text-center ${language === 'ur' ? 'sm:text-right' : 'sm:text-left'}`}>
+                    <div className={`flex flex-wrap items-center justify-center gap-2 ${language === 'ur' ? 'sm:justify-end' : 'sm:justify-start'}`}>
                       <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-snug">
                         {t('currently_inside_facility')}
                       </h2>
@@ -894,11 +894,11 @@ export default function DashboardPage() {
                     <table className="w-full text-left text-xs min-w-[700px]">
                       <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200 dark:border-slate-800">
                         <tr>
-                          <th className="px-5 py-3">{t('visitor')}</th>
-                          <th className="px-4 py-3">{t('category')}</th>
-                          <th className="px-4 py-3">{t('host_and_dept')}</th>
-                          <th className="px-4 py-3">{t('card_badge')}</th>
-                          <th className="px-4 py-3">{t('entry_time')}</th>
+                          <th className={`px-5 py-3 ${language === 'ur' ? 'text-right' : 'text-left'}`}>{t('visitor')}</th>
+                          <th className={`px-4 py-3 ${language === 'ur' ? 'text-right' : 'text-left'}`}>{t('category')}</th>
+                          <th className={`px-4 py-3 ${language === 'ur' ? 'text-right' : 'text-left'}`}>{t('host_and_dept')}</th>
+                          <th className={`px-4 py-3 ${language === 'ur' ? 'text-right' : 'text-left'}`}>{t('card_badge')}</th>
+                          <th className={`px-4 py-3 ${language === 'ur' ? 'text-right' : 'text-left'}`}>{t('entry_time')}</th>
                           <th className="px-4 py-3 text-right">{t('actions')}</th>
                         </tr>
                       </thead>
@@ -922,8 +922,8 @@ export default function DashboardPage() {
                                     <Users className="w-4 h-4 text-slate-400" />
                                   )}
                                 </div>
-                                <div>
-                                  <p className="font-bold text-slate-900 dark:text-white">
+                                <div className={`min-w-0 flex-1 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
+                                  <p className="font-bold text-slate-900 dark:text-white truncate">
                                     {visit.person?.fullName}
                                   </p>
                                   <p className="text-[10px] text-slate-400 font-mono">
@@ -933,24 +933,24 @@ export default function DashboardPage() {
                               </div>
                             </td>
 
-                            <td className="px-4 py-3">
+                            <td className={`px-4 py-3 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                                 {visit.person?.category || 'VISITOR'}
                               </span>
                             </td>
 
-                            <td className="px-4 py-3">
+                            <td className={`px-4 py-3 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
                               <p className="font-medium text-slate-800 dark:text-slate-200">
                                 {visit.hostName}
                               </p>
                               <p className="text-[10px] text-slate-400">{visit.department}</p>
                             </td>
 
-                            <td className="px-4 py-3 font-mono font-bold text-blue-600 dark:text-blue-400">
+                            <td className={`px-4 py-3 font-mono font-bold text-blue-600 dark:text-blue-400 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
                               {visit.visitorCardNo || 'N/A'}
                             </td>
 
-                            <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                            <td className={`px-4 py-3 text-slate-600 dark:text-slate-300 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
                               {new Date(visit.checkInTime).toLocaleTimeString([], {
                                 hour: '2-digit',
                                 minute: '2-digit',
@@ -986,7 +986,7 @@ export default function DashboardPage() {
 
                     {stats.activeVisitors.length > 3 && (
                       <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs text-slate-500 px-6">
-                        <span>
+                        <span className={language === 'ur' ? 'text-right' : 'text-left'}>
                           {language === 'ur'
                             ? `${stats.activeVisitors.length} میں سے 3 دکھائے جا رہے ہیں`
                             : `Showing 3 of ${stats.activeVisitors.length} visitors inside`}
@@ -1029,11 +1029,11 @@ export default function DashboardPage() {
             {/* Recent Activity (1 col) */}
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-4">
               <div className="border-b border-slate-200 dark:border-slate-800 pb-3.5 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 w-full">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
                     <Clock className="w-6 h-6" />
                   </div>
-                  <h2 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white">
+                  <h2 className={`font-extrabold text-sm sm:text-base text-slate-900 dark:text-white flex-1 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
                     {t('recent_activity')}
                   </h2>
                 </div>
@@ -1046,27 +1046,29 @@ export default function DashboardPage() {
                       key={v.id}
                       className="p-3 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 text-xs space-y-1"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-900 dark:text-white">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`font-bold text-slate-900 dark:text-white flex-1 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
                           {v.person?.fullName}
                         </span>
                         <span
-                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
                             v.status === 'CHECKED_IN'
                               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
                               : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                           }`}
                         >
-                          {v.status === 'CHECKED_IN' ? 'CHECK-IN' : 'CHECK-OUT'}
+                          {v.status === 'CHECKED_IN' ? t('check_in_badge', 'CHECK-IN') : t('check_out_badge', 'CHECK-OUT')}
                         </span>
                       </div>
 
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Visiting {v.hostName} ({v.department}) • Gate: {v.entryGate?.name || 'Main Gate'}
+                      <p className={`text-[11px] text-slate-500 dark:text-slate-400 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
+                        {language === 'ur'
+                          ? `${t('visiting_host')} ${v.hostName} (${v.department}) • ${t('gate_label')}: ${v.entryGate?.name || 'مین گیٹ'}`
+                          : `Visiting ${v.hostName} (${v.department}) • Gate: ${v.entryGate?.name || 'Main Gate'}`}
                       </p>
 
                       <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
-                        <span>Card: {v.visitorCardNo || 'N/A'}</span>
+                        <span>{t('card_label', 'Card')}: {v.visitorCardNo || 'N/A'}</span>
                         <span>
                           {new Date(v.checkInTime).toLocaleTimeString([], {
                             hour: '2-digit',

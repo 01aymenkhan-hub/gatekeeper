@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { X, RefreshCw, AlertTriangle, FlipHorizontal, Loader2, CheckCircle2 } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
 
 const OPERATOR_VIEWFINDER_ID = 'operator-qr-viewfinder-container';
 
@@ -22,6 +23,7 @@ export default function OperatorQrScanner({
   onCancel,
   isVerifying = false,
 }: OperatorQrScannerProps) {
+  const { language, t } = useLanguage();
   const [permissionState, setPermissionState] = useState<'pending' | 'granted' | 'denied' | 'error'>('pending');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>([]);
@@ -160,7 +162,11 @@ export default function OperatorQrScanner({
             setErrorMessage('Camera access denied. Please enable camera permission in your mobile browser.');
           } else {
             setPermissionState('error');
-            setErrorMessage(err instanceof Error ? err.message : 'Camera is currently unavailable. Ensure no other app is using it.');
+            setErrorMessage(
+              err instanceof Error
+                ? err.message
+                : 'Camera is currently unavailable. Ensure no other app is using it.'
+            );
           }
           setIsInitializing(false);
         }
@@ -215,6 +221,13 @@ export default function OperatorQrScanner({
     void startScanner({ facingMode: 'environment' });
   };
 
+  const localizedCameraError =
+    permissionState === 'denied'
+      ? t('camera_permission_denied')
+      : language === 'ur'
+      ? t('camera_unavailable')
+      : errorMessage || t('camera_unavailable');
+
   return (
     <div className="flex flex-col items-center justify-center w-full animate-in fade-in duration-200">
       {/* Viewfinder Window */}
@@ -223,22 +236,28 @@ export default function OperatorQrScanner({
 
         {/* Loading Overlay */}
         {isInitializing && (
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-3 z-20">
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xs flex flex-col items-center justify-center text-white text-center gap-3 z-20 p-4">
             <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center">
               <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
             </div>
-            <p className="text-xs font-bold tracking-wide text-slate-200">Starting Camera...</p>
+            <p className="text-xs font-bold tracking-wide text-slate-200">
+              {t('starting_camera', 'Starting Camera...')}
+            </p>
           </div>
         )}
 
         {/* Verifying Operator State */}
         {(isVerifying || scanSuccess) && (
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center text-white gap-3 z-30">
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center text-white text-center gap-3 z-30 p-4">
             <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
               <CheckCircle2 className="w-8 h-8 text-emerald-400 animate-pulse" />
             </div>
-            <p className="text-sm font-black tracking-wide text-emerald-300">QR Code Detected</p>
-            <p className="text-xs text-slate-300">Verifying Operator Credentials...</p>
+            <p className="text-sm font-black tracking-wide text-emerald-300">
+              {t('qr_code_detected', 'QR Code Detected')}
+            </p>
+            <p className="text-xs text-slate-300">
+              {t('verifying_credentials', 'Verifying Operator Credentials...')}
+            </p>
           </div>
         )}
 
@@ -249,9 +268,11 @@ export default function OperatorQrScanner({
               <AlertTriangle className="w-8 h-8" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white">Camera Access Error</h4>
+              <h4 className="text-sm font-bold text-white">
+                {t('camera_access_error', 'Camera Access Error')}
+              </h4>
               <p className="text-xs text-slate-300 mt-1.5 max-w-[240px] leading-relaxed">
-                {errorMessage || 'Unable to start camera on this device.'}
+                {localizedCameraError}
               </p>
             </div>
             <button
@@ -260,7 +281,7 @@ export default function OperatorQrScanner({
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Retry Camera</span>
+              <span>{t('retry_camera', 'Retry Camera')}</span>
             </button>
           </div>
         )}
@@ -285,7 +306,7 @@ export default function OperatorQrScanner({
       {/* Helper text & Scanner Controls */}
       <div className="mt-4 text-center space-y-3 w-full max-w-[340px]">
         <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
-          Position your Operator QR Card in the center frame
+          {t('position_qr_in_frame', 'Position your Operator QR Card in the center frame')}
         </p>
 
         <div className="flex items-center justify-center gap-2.5">
@@ -296,7 +317,7 @@ export default function OperatorQrScanner({
               className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
             >
               <FlipHorizontal className="w-3.5 h-3.5 text-blue-500" />
-              <span>Flip Camera</span>
+              <span>{t('flip_camera', 'Flip Camera')}</span>
             </button>
           )}
 
@@ -309,7 +330,7 @@ export default function OperatorQrScanner({
             className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
           >
             <X className="w-3.5 h-3.5 text-slate-400" />
-            <span>Cancel Scan</span>
+            <span>{t('cancel_scan', 'Cancel Scan')}</span>
           </button>
         </div>
       </div>

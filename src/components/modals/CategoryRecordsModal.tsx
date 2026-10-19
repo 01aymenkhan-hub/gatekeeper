@@ -54,7 +54,7 @@ export default function CategoryRecordsModal({
   onViewPass,
   onCheckOut,
 }: CategoryRecordsModalProps) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const [visits, setVisits] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -159,12 +159,12 @@ export default function CategoryRecordsModal({
         
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 flex items-center justify-between gap-4 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="p-2.5 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/20 shrink-0">
               <CategoryIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
+            <div className={`min-w-0 flex-1 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
+              <div className={`flex items-center gap-2 ${language === 'ur' ? 'justify-end' : 'justify-start'}`}>
                 <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white truncate">
                   {t(config.titleKey, config.defaultTitle)}
                 </h2>
@@ -201,7 +201,7 @@ export default function CategoryRecordsModal({
               value={searchTerm}
               onChange={handleSearchChange}
               placeholder={t('search_placeholder', 'Search by name, CNIC, or badge number...')}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+              className={`w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all ${language === 'ur' ? 'text-right' : 'text-left'}`}
             />
             {searchTerm && (
               <button
@@ -282,7 +282,7 @@ export default function CategoryRecordsModal({
                 {t('no_records_found', 'No matching records found')}
               </p>
               <p className="text-xs text-slate-400 max-w-sm">
-                Try searching with a different visitor name, CNIC number, badge, or changing the status filter.
+                {t('no_records_hint', 'Try searching with a different visitor name, CNIC number, badge, or changing the status filter.')}
               </p>
             </div>
           ) : (
