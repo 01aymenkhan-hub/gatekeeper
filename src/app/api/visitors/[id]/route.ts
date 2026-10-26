@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
+import { sanitizePersonForClient } from '@/lib/personSanitizer';
 
 export async function GET(
   request: NextRequest,
@@ -38,7 +39,7 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      person,
+      person: sanitizePersonForClient(person),
       activeVisit,
       totalVisits: person.visits.length,
     });
@@ -98,7 +99,7 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      person: updatedPerson,
+      person: sanitizePersonForClient(updatedPerson),
     });
   } catch (error: any) {
     console.error('Error updating person:', error);

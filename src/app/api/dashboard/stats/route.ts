@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
+import { sanitizeVisitForClient } from '@/lib/personSanitizer';
 
 export async function GET(request: NextRequest) {
   try {
@@ -122,8 +123,8 @@ export async function GET(request: NextRequest) {
         deliveriesToday: categoryBreakdown.DELIVERY,
         visitorsToday: categoryBreakdown.VISITOR,
         categoryBreakdown,
-        recentVisits,
-        activeVisitors,
+        recentVisits: recentVisits.map((v) => sanitizeVisitForClient(v)),
+        activeVisitors: activeVisitors.map((v) => sanitizeVisitForClient(v)),
       },
     });
   } catch (error: any) {

@@ -20,8 +20,16 @@ import {
   User,
   LogOut,
   Shield,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import { IconLogoutDoor } from '@/components/icons/OperatorTaskIcons';
+import {
+  isOperatorSoundEnabled,
+  setOperatorSoundEnabled,
+  subscribeOperatorSoundPreference,
+  playSelectSound,
+} from '@/utils/interactionSound';
 
 interface HeaderProps {
   onOpenCheckIn?: (category?: string) => void;
@@ -44,6 +52,22 @@ export default function Header({
   const [currentDate, setCurrentDate] = useState<string>('');
   const [isGateOpen, setIsGateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => isOperatorSoundEnabled());
+
+  useEffect(() => {
+    return subscribeOperatorSoundPreference((enabled) => {
+      setSoundEnabled(enabled);
+    });
+  }, []);
+
+  const handleToggleSound = () => {
+    const next = !soundEnabled;
+    setOperatorSoundEnabled(next);
+    setSoundEnabled(next);
+    if (next) {
+      playSelectSound();
+    }
+  };
 
   const gateDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
@@ -368,6 +392,25 @@ export default function Header({
               <Sun className="w-3.5 h-3.5 text-amber-400" />
             ) : (
               <Moon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+            )}
+          </button>
+
+          {/* Operator Interaction Sound Toggle Button */}
+          <button
+            onClick={handleToggleSound}
+            type="button"
+            className={`p-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+              soundEnabled
+                ? 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-blue-600 dark:text-blue-400'
+                : 'border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200/70 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500'
+            }`}
+            title={soundEnabled ? t('mute_sounds', 'Mute Sounds') : t('enable_sounds', 'Enable Sounds')}
+            aria-label={soundEnabled ? t('mute_sounds', 'Mute Sounds') : t('enable_sounds', 'Enable Sounds')}
+          >
+            {soundEnabled ? (
+              <Volume2 className="w-3.5 h-3.5 shrink-0" />
+            ) : (
+              <VolumeX className="w-3.5 h-3.5 shrink-0" />
             )}
           </button>
 

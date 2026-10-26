@@ -33,6 +33,7 @@ import CheckOutModal from '@/components/modals/CheckOutModal';
 import CheckStatusModal from '@/components/modals/CheckStatusModal';
 import VisitorBadgeModal from '@/components/modals/VisitorBadgeModal';
 import CategoryRecordsModal, { CategoryModalConfig } from '@/components/modals/CategoryRecordsModal';
+import GatekeeperLoader from '@/components/ui/GatekeeperLoader';
 
 export default function DashboardPage() {
   const { user, currentGate } = useAuth();
@@ -72,10 +73,22 @@ export default function DashboardPage() {
   const [isCheckOutOpen, setIsCheckOutOpen] = useState(false);
   const [selectedCheckoutVisit, setSelectedCheckoutVisit] = useState<any>(null);
   const [isCheckStatusOpen, setIsCheckStatusOpen] = useState(false);
+  const [selectedPersonForDetails, setSelectedPersonForDetails] = useState<any>(null);
   const [selectedVisitBadge, setSelectedVisitBadge] = useState<any>(null);
 
   // Operator-only Category Records Modal state
   const [categoryModalConfig, setCategoryModalConfig] = useState<CategoryModalConfig | null>(null);
+
+  const openPersonDetails = (visit: any) => {
+    if (!visit?.person) return;
+    setSelectedPersonForDetails({
+      person: visit.person,
+      isCurrentlyInside: visit.status === 'CHECKED_IN',
+      activeVisit: visit.status === 'CHECKED_IN' ? visit : null,
+      totalVisits: 1,
+    });
+    setIsCheckStatusOpen(true);
+  };
 
   const fetchStats = useCallback(async () => {
     try {
@@ -105,7 +118,12 @@ export default function DashboardPage() {
 
   return (
     <AppLayout onRefreshData={fetchStats}>
-      {isAdmin ? (
+      {loading && !stats ? (
+        <GatekeeperLoader
+          variant="section"
+          title={t('loading_dashboard', 'Loading dashboard...')}
+        />
+      ) : isAdmin ? (
         /* ========================================================================= */
         /*                          ORIGINAL ADMIN DASHBOARD                         */
         /* (Retains exact original layout, typography, cards, tables, buttons & responsive behavior) */
@@ -909,7 +927,10 @@ export default function DashboardPage() {
                             className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
                           >
                             <td className="px-5 py-3">
-                              <div className="flex items-center gap-2.5">
+                              <div
+                                onClick={() => openPersonDetails(visit)}
+                                className="flex items-center gap-2.5 cursor-pointer group"
+                              >
                                 <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-800 overflow-hidden flex items-center justify-center shrink-0">
                                   {visit.person?.photoUrl ? (
                                     /* eslint-disable-next-line @next/next/no-img-element */
@@ -923,11 +944,11 @@ export default function DashboardPage() {
                                   )}
                                 </div>
                                 <div className={`min-w-0 flex-1 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
-                                  <p className="font-bold text-slate-900 dark:text-white truncate">
+                                  <p className="font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                     {visit.person?.fullName}
                                   </p>
                                   <p className="text-[10px] text-slate-400 font-mono">
-                                    {visit.person?.cnicNumber || visit.person?.phoneNumber || 'N/A'}
+                                    {visit.person?.cnicNumber || visit.person?.dlsNumber || visit.person?.phoneNumber || 'N/A'}
                                   </p>
                                 </div>
                               </div>
@@ -1044,10 +1065,11 @@ export default function DashboardPage() {
                   stats.recentVisits.slice(0, 7).map((v: any) => (
                     <div
                       key={v.id}
-                      className="p-3 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 text-xs space-y-1"
+                      onClick={() => openPersonDetails(v)}
+                      className="p-3 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 hover:border-blue-300 dark:hover:border-blue-800 transition-colors text-xs space-y-1 cursor-pointer group"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`font-bold text-slate-900 dark:text-white flex-1 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
+                        <span className={`font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex-1 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
                           {v.person?.fullName}
                         </span>
                         <span
@@ -1112,7 +1134,11 @@ export default function DashboardPage() {
 
       <CheckStatusModal
         isOpen={isCheckStatusOpen}
-        onClose={() => setIsCheckStatusOpen(false)}
+        initialPerson={selectedPersonForDetails}
+        onClose={() => {
+          setIsCheckStatusOpen(false);
+          setSelectedPersonForDetails(null);
+        }}
       />
 
       {selectedVisitBadge && (
@@ -1129,6 +1155,7 @@ export default function DashboardPage() {
           config={categoryModalConfig}
           onClose={() => setCategoryModalConfig(null)}
           onViewPass={(visit) => setSelectedVisitBadge(visit)}
+          onViewPerson={(visit) => openPersonDetails(visit)}
           onCheckOut={(visit) => {
             setSelectedCheckoutVisit(visit);
             setIsCheckOutOpen(true);

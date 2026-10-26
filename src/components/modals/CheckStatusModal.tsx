@@ -2,14 +2,21 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, User, ShieldAlert, Award, Clock, Calendar, CheckCircle2, History, ChevronRight, ArrowLeft, Loader2 } from 'lucide-react';
+import IdentityDocumentImagesCard from '@/components/visitors/IdentityDocumentImagesCard';
 
 interface CheckStatusModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCheckOut?: (visitId: string) => void;
+  initialPerson?: {
+    person: any;
+    isCurrentlyInside?: boolean;
+    activeVisit?: any;
+    totalVisits?: number;
+  } | null;
 }
 
-export default function CheckStatusModal({ isOpen, onClose }: CheckStatusModalProps) {
+export default function CheckStatusModal({ isOpen, onClose, initialPerson }: CheckStatusModalProps) {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -18,6 +25,20 @@ export default function CheckStatusModal({ isOpen, onClose }: CheckStatusModalPr
   const [error, setError] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen && initialPerson && initialPerson.person) {
+      setResult({
+        found: true,
+        person: initialPerson.person,
+        isCurrentlyInside: Boolean(initialPerson.isCurrentlyInside),
+        activeVisit: initialPerson.activeVisit || null,
+        totalVisits: initialPerson.totalVisits ?? 1,
+        recentVisits: initialPerson.activeVisit ? [initialPerson.activeVisit] : [],
+      });
+      setError(null);
+    }
+  }, [isOpen, initialPerson]);
 
   // Live debounced suggestions
   useEffect(() => {
@@ -304,7 +325,8 @@ export default function CheckStatusModal({ isOpen, onClose }: CheckStatusModalPr
                         )}
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        {result.person.category} • CNIC: {result.person.cnicNumber || 'N/A'} • Phone:{' '}
+                        {result.person.category} • CNIC: {result.person.cnicNumber || 'N/A'}
+                        {result.person.dlsNumber ? ` • DLS: ${result.person.dlsNumber}` : ''} • Phone:{' '}
                         {result.person.phoneNumber || 'N/A'}
                       </p>
                     </div>
@@ -342,6 +364,9 @@ export default function CheckStatusModal({ isOpen, onClose }: CheckStatusModalPr
                     </p>
                   </div>
                 )}
+
+                {/* Identity Document Images (CNIC / Driving Licence) */}
+                <IdentityDocumentImagesCard person={result.person} compact />
               </div>
 
               {/* Total visits stat */}

@@ -358,6 +358,88 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
     en: 'Collect Physical Visitor Card:',
     ur: 'وزیٹر سے یہ کارڈ واپس لیں:',
   },
+
+  // ── Identity Document Images (CNIC / Driving Licence) ──
+  identity_documents_title: {
+    en: 'Identity Document Images',
+    ur: 'شناختی دستاویزات کی تصاویر',
+  },
+  cnic_image_label: {
+    en: 'CNIC Image',
+    ur: 'شناختی کارڈ کی تصویر',
+  },
+  dls_image_label: {
+    en: 'Driving Licence Image',
+    ur: 'ڈرائیونگ لائسنس کی تصویر',
+  },
+  image_not_available: {
+    en: 'Image not available',
+    ur: 'تصویر دستیاب نہیں ہے',
+  },
+  image_load_error: {
+    en: 'Could not load document image',
+    ur: 'تصویر لوڈ نہیں ہو سکی',
+  },
+  retry_load_image_btn: {
+    en: 'Retry',
+    ur: 'دوبارہ لوڈ کریں',
+  },
+  view_full_image: {
+    en: 'Tap to enlarge',
+    ur: 'بڑا کرنے کے لیے ٹیپ کریں',
+  },
+  image_save_failed_warning: {
+    en: 'Visitor registered, but saving the scanned ID card image failed.',
+    ur: 'وزیٹر رجسٹر ہو گیا، لیکن شناختی کارڈ کی تصویر محفوظ نہیں ہو سکی۔',
+  },
+  retry_save_image_btn: {
+    en: 'Retry Saving ID Image',
+    ur: 'تصویر دوبارہ محفوظ کریں',
+  },
+  saving_id_image: {
+    en: 'Saving ID image...',
+    ur: 'تصویر محفوظ کی جا رہی ہے...',
+  },
+  id_image_saved_badge: {
+    en: 'ID Card Image Saved ✓',
+    ur: 'شناختی کارڈ کی تصویر محفوظ ہو گئی ✓',
+  },
+  view_person_details_btn: {
+    en: 'View Person Details',
+    ur: 'مکمل معلومات دیکھیں',
+  },
+
+  // ── Operator Interaction Sounds ──
+  sound_on: {
+    en: 'Interaction Sounds: On',
+    ur: 'آوازیں: آن',
+  },
+  sound_off: {
+    en: 'Interaction Sounds: Off',
+    ur: 'آوازیں: آف',
+  },
+  sound_toggle_short: {
+    en: 'Sounds',
+    ur: 'آواز',
+  },
+
+  // ── Branded Loading Messages ──
+  loading_gatekeeper: {
+    en: 'Loading Gate Keeper...',
+    ur: 'گیٹ کیپر لوڈ ہو رہا ہے...',
+  },
+  loading_dashboard: {
+    en: 'Loading dashboard...',
+    ur: 'ڈیش بورڈ لوڈ ہو رہا ہے...',
+  },
+  loading_person_details: {
+    en: 'Loading person details...',
+    ur: 'معلومات لوڈ ہو رہی ہیں...',
+  },
+  slow_operation_hint: {
+    en: 'Still working, please wait a moment...',
+    ur: 'کارروائی جاری ہے، براہ کرم تھوڑا انتظار کریں...',
+  },
 };
 
 const LanguageContext = createContext<LanguageContextType>({

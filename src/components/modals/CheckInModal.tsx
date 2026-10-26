@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   X,
   AlertTriangle,
   Camera,
   ArrowLeft,
   ArrowRight,
-  Loader2,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 import VisitInfoStep from '../VisitInfoStep';
 import CnicScanner from '../CnicScanner';
@@ -17,12 +18,22 @@ import DlsForm from '../DlsForm';
 import VisitorStep from '../VisitorStep';
 import VisitorBadgeModal from './VisitorBadgeModal';
 import RegistrationSuccessModal from './RegistrationSuccessModal';
+import GatekeeperLoader from '../ui/GatekeeperLoader';
 import { CnicData, ScanStatus } from '../../types/cnic';
 import { DlsData, DocumentType } from '../../types/dls';
 import { VisitInfoData, VisitorStepData, SubmissionStatus } from '../../types/visitor';
 import { scanCnicReal, scanCnicMock, RawOcrResponse } from '../../services/cnicApi';
 import { scanDlsReal, scanDlsMock, RawDlsResponse } from '../../services/dlsApi';
 import { parseCnicOcr } from '../../utils/cnicParser';
+import { compressIdentityImageFile } from '../../utils/documentImageCompression';
+import {
+  playSelectSound,
+  playContinueSound,
+  playBackSound,
+  isOperatorSoundEnabled,
+  setOperatorSoundEnabled,
+  subscribeOperatorSoundPreference,
+} from '../../utils/interactionSound';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { IconPakistaniCnic, IconDrivingLicence } from '../icons/OperatorTaskIcons';
@@ -109,25 +120,49 @@ export default function CheckInModal({
     }
   }
 
+  // Operator interaction sound preference state
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => isOperatorSoundEnabled());
+  useEffect(() => {
+    return subscribeOperatorSoundPreference((enabled) => {
+      setSoundEnabled(enabled);
+    });
+  }, []);
+
+  const handleToggleSound = () => {
+    const next = !soundEnabled;
+    setOperatorSoundEnabled(next);
+    setSoundEnabled(next);
+    if (next) {
+      playSelectSound();
+    }
+  };
+
   const [visitInfo, setVisitInfo] = useState<VisitInfoData>(EMPTY_VISIT_INFO);
   const [documentType, setDocumentType] = useState<DocumentType>('cnic');
   const [isDocCameraOpen, setIsDocCameraOpen] = useState(false);
 
-  // CNIC Form State
+  // CNIC Form State & Scanned Image State
   const [cnicFormData, setCnicFormData] = useState<CnicData>(EMPTY_CNIC_DATA);
   const [cnicScanStatus, setCnicScanStatus] = useState<ScanStatus>('idle');
   const [, setRawCnicOcrResult] = useState<RawOcrResponse | null>(null);
+  const [cnicScannedImage, setCnicScannedImage] = useState<string | null>(null);
+  const [cnicImageCaptureError, setCnicImageCaptureError] = useState<string | null>(null);
 
-  // DLS Form State
+  // DLS Form State & Scanned Image State
   const [dlsFormData, setDlsFormData] = useState<DlsData>(EMPTY_DLS_DATA);
   const [dlsScanStatus, setDlsScanStatus] = useState<ScanStatus>('idle');
   const [, setRawDlsOcrResult] = useState<RawDlsResponse | null>(null);
+  const [dlsScannedImage, setDlsScannedImage] = useState<string | null>(null);
+  const [dlsImageCaptureError, setDlsImageCaptureError] = useState<string | null>(null);
 
-  // Visitor Data
+  // Visitor Data & Submission State
   const [visitorData, setVisitorData] = useState<VisitorStepData>(EMPTY_VISITOR_DATA);
   const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>('idle');
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [createdVisit, setCreatedVisit] = useState<Record<string, unknown> | null>(null);
+  const [imageStorageStatus, setImageStorageStatus] = useState<'saved' | 'failed' | 'none'>('none');
+  const [imageStorageError, setImageStorageError] = useState<string | null>(null);
+  const [isRetryingImageSave, setIsRetryingImageSave] = useState(false);
   const [showBadge, setShowBadge] = useState(false);
   const [autoPrintBadge, setAutoPrintBadge] = useState(false);
 
@@ -160,8 +195,24 @@ export default function CheckInModal({
   const handleCnicScan = useCallback(
     async (file: File) => {
       setCnicScanStatus('scanning');
+      setCnicImageCaptureError(null);
+
+      // Compress and retain the scanned CNIC image in parallel with OCR processing
+      const compressionPromise = compressIdentityImageFile(file);
+
       try {
-        const result = await scanCnicReal(file);
+        const [result, compressedImg] = await Promise.all([
+          scanCnicReal(file),
+          compressionPromise,
+        ]);
+
+        if (compressedImg.ok) {
+          setCnicScannedImage(compressedImg.dataUrl);
+        } else {
+          setCnicScannedImage(null);
+          setCnicImageCaptureError(compressedImg.error);
+        }
+
         setRawCnicOcrResult(result);
         const rawItems = result.results || result.details || [];
         const structuredData: CnicData = result.parsed || parseCnicOcr(rawItems);
@@ -187,9 +238,18 @@ export default function CheckInModal({
         setCnicFormData(structuredData);
         setCnicScanStatus('success');
         if (!isAdmin) {
+          playContinueSound();
           setOperatorStep(4);
         }
       } catch {
+        const compressedImg = await compressionPromise;
+        if (compressedImg.ok) {
+          setCnicScannedImage(compressedImg.dataUrl);
+        } else {
+          setCnicScannedImage(null);
+          setCnicImageCaptureError(compressedImg.error);
+        }
+
         if (isAdmin) {
           try {
             const mockResult = await scanCnicMock(file);
@@ -209,8 +269,24 @@ export default function CheckInModal({
   const handleDlsScan = useCallback(
     async (file: File) => {
       setDlsScanStatus('scanning');
+      setDlsImageCaptureError(null);
+
+      // Compress and retain the scanned DLS image in parallel with OCR processing
+      const compressionPromise = compressIdentityImageFile(file);
+
       try {
-        const result = await scanDlsReal(file);
+        const [result, compressedImg] = await Promise.all([
+          scanDlsReal(file),
+          compressionPromise,
+        ]);
+
+        if (compressedImg.ok) {
+          setDlsScannedImage(compressedImg.dataUrl);
+        } else {
+          setDlsScannedImage(null);
+          setDlsImageCaptureError(compressedImg.error);
+        }
+
         setRawDlsOcrResult(result);
         const structuredData: DlsData = result.parsed || EMPTY_DLS_DATA;
 
@@ -226,9 +302,18 @@ export default function CheckInModal({
         setDlsFormData(structuredData);
         setDlsScanStatus('success');
         if (!isAdmin) {
+          playContinueSound();
           setOperatorStep(4);
         }
       } catch {
+        const compressedImg = await compressionPromise;
+        if (compressedImg.ok) {
+          setDlsScannedImage(compressedImg.dataUrl);
+        } else {
+          setDlsScannedImage(null);
+          setDlsImageCaptureError(compressedImg.error);
+        }
+
         if (isAdmin) {
           try {
             const mockResult = await scanDlsMock(file);
@@ -246,6 +331,7 @@ export default function CheckInModal({
   );
 
   const handleOperatorStartScan = (type: DocumentType) => {
+    playSelectSound();
     setDocumentType(type);
     setIsDocCameraOpen(true);
   };
@@ -315,6 +401,8 @@ export default function CheckInModal({
           (doc as unknown as Record<string, string | undefined>).permanentAddress || undefined,
         phoneNumber: visitorData.phoneNumber,
         photoUrl: visitorData.photoPreview,
+        cnicImageData: cnicScannedImage || undefined,
+        dlsImageData: dlsScannedImage || undefined,
         hostName: visitInfo.meetName,
         department: visitInfo.department,
         visitorCardNo: visitorData.visitorCardNo,
@@ -339,6 +427,20 @@ export default function CheckInModal({
         throw new Error(data.error || 'Failed to check in visitor');
       }
 
+      const activeCaptureError =
+        documentType === 'cnic' ? cnicImageCaptureError : dlsImageCaptureError;
+
+      if (data.imageStorageStatus === 'failed' || activeCaptureError) {
+        setImageStorageStatus('failed');
+        setImageStorageError(data.imageStorageError || activeCaptureError || null);
+      } else if (data.imageStorageStatus === 'saved') {
+        setImageStorageStatus('saved');
+        setImageStorageError(null);
+      } else {
+        setImageStorageStatus('none');
+        setImageStorageError(null);
+      }
+
       setCreatedVisit(data.visit);
       setSubmissionStatus('success');
       if (onSuccess) onSuccess();
@@ -349,6 +451,49 @@ export default function CheckInModal({
     }
   };
 
+  // Retry saving the scanned CNIC/DLS image to the already-created Person record without creating duplicate visits
+  const handleRetrySaveDocumentImage = async () => {
+    const personObj = (createdVisit?.person as Record<string, unknown> | undefined) || null;
+    const personId = (personObj?.id as string | undefined) || (createdVisit?.personId as string | undefined);
+    const activeImage = documentType === 'cnic' ? cnicScannedImage : dlsScannedImage;
+
+    if (!personId || !activeImage) {
+      setImageStorageError(
+        t('image_save_failed_warning', 'Scanned ID card image is unavailable. Please rescan if needed.')
+      );
+      return;
+    }
+
+    setIsRetryingImageSave(true);
+    try {
+      const res = await fetch(`/api/visitors/${personId}/document-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: documentType,
+          imageDataUrl: activeImage,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to save ID image');
+      }
+      setImageStorageStatus('saved');
+      setImageStorageError(null);
+      if (json.person && createdVisit) {
+        setCreatedVisit({
+          ...createdVisit,
+          person: json.person,
+        });
+      }
+    } catch (err: unknown) {
+      setImageStorageStatus('failed');
+      setImageStorageError(err instanceof Error ? err.message : 'Failed to save ID image');
+    } finally {
+      setIsRetryingImageSave(false);
+    }
+  };
+
   const handleResetAll = () => {
     setCurrentStep(1);
     setOperatorStep(1);
@@ -356,12 +501,19 @@ export default function CheckInModal({
     setVisitInfo(EMPTY_VISIT_INFO);
     setCnicFormData(EMPTY_CNIC_DATA);
     setCnicScanStatus('idle');
+    setCnicScannedImage(null);
+    setCnicImageCaptureError(null);
     setDlsFormData(EMPTY_DLS_DATA);
     setDlsScanStatus('idle');
+    setDlsScannedImage(null);
+    setDlsImageCaptureError(null);
     setVisitorData(EMPTY_VISITOR_DATA);
     setSubmissionStatus('idle');
     setSubmissionError(null);
     setCreatedVisit(null);
+    setImageStorageStatus('none');
+    setImageStorageError(null);
+    setIsRetryingImageSave(false);
     setShowBadge(false);
     setAutoPrintBadge(false);
   };
@@ -387,20 +539,8 @@ export default function CheckInModal({
 
   return (
     <>
-      <div
-        className={
-          isAdmin
-            ? 'fixed inset-0 z-40 flex items-center justify-center p-2.5 sm:p-6 bg-slate-950/75 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150'
-            : 'fixed inset-0 z-40 flex items-stretch sm:items-center justify-center p-1.5 sm:p-6 bg-slate-950/75 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150'
-        }
-      >
-        <div
-          className={
-            isAdmin
-              ? 'w-full max-w-2xl my-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[94vh]'
-              : 'w-full max-w-2xl sm:my-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col min-h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] sm:min-h-[560px] sm:max-h-[92vh]'
-          }
-        >
+      <div className="fixed inset-0 z-40 flex items-center justify-center p-2.5 sm:p-6 bg-slate-950/75 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150">
+        <div className="w-full max-w-2xl my-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
           {/* Header */}
           {isAdmin ? (
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 shrink-0">
@@ -456,16 +596,38 @@ export default function CheckInModal({
                 </p>
               </div>
 
-              <button
-                onClick={() => {
-                  handleResetAll();
-                  onClose();
-                }}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                title={t('close', 'Close')}
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                {/* Operator Interaction Sound Toggle */}
+                <button
+                  type="button"
+                  onClick={handleToggleSound}
+                  className={`p-1.5 rounded-xl border transition-colors cursor-pointer ${
+                    soundEnabled
+                      ? 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  }`}
+                  title={soundEnabled ? t('sound_on', 'Interaction Sounds: On') : t('sound_off', 'Interaction Sounds: Off')}
+                  aria-label={soundEnabled ? t('sound_on', 'Interaction Sounds: On') : t('sound_off', 'Interaction Sounds: Off')}
+                  aria-pressed={soundEnabled}
+                >
+                  {soundEnabled ? (
+                    <Volume2 className="w-4 h-4" />
+                  ) : (
+                    <VolumeX className="w-4 h-4" />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => {
+                    handleResetAll();
+                    onClose();
+                  }}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  title={t('close', 'Close')}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           )}
 
@@ -594,7 +756,7 @@ export default function CheckInModal({
             </div>
           ) : (
             /* ── OPERATOR 6-STEP MOBILE-FIRST REGISTRATION FLOW ── */
-            <div className="p-4 sm:p-5 overflow-y-auto flex-1 flex flex-col">
+            <div className="p-3.5 sm:p-5 overflow-y-auto flex-1 space-y-4">
               {/* STEP 1: SELECT VISITOR CATEGORY (Auto-advances to Step 2) */}
               {operatorStep === 1 && (
                 <VisitInfoStep
@@ -622,38 +784,30 @@ export default function CheckInModal({
 
               {/* STEP 3: SCAN ID CARD (Existing CNIC/DLS Scanning UI Preserved) */}
               {operatorStep === 3 && (
-                <div className="flex-1 flex flex-col justify-between gap-4">
-                  {/* Scanning in Progress State */}
+                <div className="space-y-4">
+                  {/* Branded Gatekeeper Loading State while OCR reads card */}
                   {activeScanStatus === 'scanning' && (
-                    <div className="flex-1 rounded-2xl border-2 border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/30 p-7 sm:p-9 flex flex-col items-center justify-center text-center space-y-3.5 animate-in fade-in duration-200">
-                      <div className="w-16 h-16 rounded-2xl bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-sm">
-                        <Loader2 className="w-10 h-10 animate-spin" />
-                      </div>
-                      <div className="space-y-1">
-                        <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
-                          {t('ocr_scanning_title', 'Reading Card Details...')}
-                        </h3>
-                        <p className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300">
-                          {t(
-                            'ocr_scanning_subtitle',
-                            'Please wait a moment while OCR extracts the information'
-                          )}
-                        </p>
-                      </div>
-                    </div>
+                    <GatekeeperLoader
+                      variant="card"
+                      title={t('ocr_scanning_title', 'Reading Card Details...')}
+                      subtitle={t(
+                        'ocr_scanning_subtitle',
+                        'Please wait a moment while OCR extracts the information'
+                      )}
+                    />
                   )}
 
                   {/* Scan Failed Prominent Error Card */}
                   {activeScanStatus === 'error' && (
-                    <div className="rounded-2xl border-2 border-red-300 dark:border-red-800 bg-red-50/90 dark:bg-red-950/40 p-4 sm:p-5 flex flex-col items-center justify-center text-center space-y-2.5 animate-in zoom-in-95 duration-200">
-                      <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400 flex items-center justify-center shadow-sm">
-                        <AlertTriangle className="w-7 h-7 stroke-[2.2]" />
+                    <div className="rounded-2xl border-2 border-red-300 dark:border-red-800 bg-red-50/90 dark:bg-red-950/40 p-5 sm:p-6 flex flex-col items-center justify-center text-center space-y-3 animate-in zoom-in-95 duration-200">
+                      <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400 flex items-center justify-center shadow-sm">
+                        <AlertTriangle className="w-8 h-8 stroke-[2.2]" />
                       </div>
                       <div className="space-y-1 max-w-md">
-                        <h3 className="text-sm sm:text-base font-extrabold text-red-700 dark:text-red-300">
+                        <h3 className="text-base sm:text-lg font-extrabold text-red-700 dark:text-red-300">
                           {t('scan_failed_title', 'Scan failed. Please scan again.')}
                         </h3>
-                        <p className="text-xs font-medium text-red-600/90 dark:text-red-300/90">
+                        <p className="text-xs sm:text-sm font-medium text-red-600/90 dark:text-red-300/90">
                           {t(
                             'scan_failed_subtitle',
                             'Hold the card steady in good light inside the frame and try again.'
@@ -663,7 +817,7 @@ export default function CheckInModal({
                       <button
                         type="button"
                         onClick={() => handleOperatorStartScan(documentType)}
-                        className="py-2.5 px-5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white text-xs sm:text-sm font-extrabold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                        className="py-3 px-6 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white text-xs sm:text-sm font-extrabold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                       >
                         <Camera className="w-4 h-4" />
                         <span>{t('scan_again_btn', 'Scan Again')}</span>
@@ -673,7 +827,7 @@ export default function CheckInModal({
 
                   {/* Two Large Visual Scanning Option Cards */}
                   {activeScanStatus !== 'scanning' && (
-                    <div className="flex-1 flex flex-col gap-3.5">
+                    <div className="space-y-3">
                       <div className={isUr ? 'text-right' : 'text-left'}>
                         <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
                           {t('scan_id_card_title', 'Scan ID Card')}
@@ -686,12 +840,12 @@ export default function CheckInModal({
                         </p>
                       </div>
 
-                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3.5 content-stretch">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                         {/* Option A: Scan CNIC (Green Primary Accent) */}
                         <button
                           type="button"
                           onClick={() => handleOperatorStartScan('cnic')}
-                          className="group relative flex flex-col items-center justify-center text-center p-5 sm:p-6 rounded-2xl border-2 border-emerald-500/80 dark:border-emerald-500/70 bg-emerald-50/70 hover:bg-emerald-50 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 transition-all duration-150 cursor-pointer active:scale-[0.98] shadow-sm hover:shadow-md min-h-[155px] sm:min-h-[195px]"
+                          className="group relative flex flex-col items-center justify-center text-center p-5 sm:p-6 rounded-2xl border-2 border-emerald-500/80 dark:border-emerald-500/70 bg-emerald-50/70 hover:bg-emerald-50 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 transition-all duration-150 cursor-pointer active:scale-[0.98] shadow-sm hover:shadow-md min-h-[165px] sm:min-h-[195px]"
                         >
                           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mb-3 gk-pulse-emerald transition-transform group-hover:scale-105">
                             <IconPakistaniCnic className="w-12 h-12 sm:w-14 sm:h-14" />
@@ -709,7 +863,7 @@ export default function CheckInModal({
                         <button
                           type="button"
                           onClick={() => handleOperatorStartScan('dls')}
-                          className="group relative flex flex-col items-center justify-center text-center p-5 sm:p-6 rounded-2xl border-2 border-blue-500/80 dark:border-blue-500/70 bg-blue-50/70 hover:bg-blue-50 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 transition-all duration-150 cursor-pointer active:scale-[0.98] shadow-sm hover:shadow-md min-h-[155px] sm:min-h-[195px]"
+                          className="group relative flex flex-col items-center justify-center text-center p-5 sm:p-6 rounded-2xl border-2 border-blue-500/80 dark:border-blue-500/70 bg-blue-50/70 hover:bg-blue-50 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 transition-all duration-150 cursor-pointer active:scale-[0.98] shadow-sm hover:shadow-md min-h-[165px] sm:min-h-[195px]"
                         >
                           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 flex items-center justify-center mb-3 gk-pulse-blue transition-transform group-hover:scale-105">
                             <IconDrivingLicence className="w-12 h-12 sm:w-14 sm:h-14" />
@@ -727,10 +881,13 @@ export default function CheckInModal({
                   )}
 
                   {/* Back Navigation */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80 shrink-0">
+                  <div className="flex items-center justify-between pt-1">
                     <button
                       type="button"
-                      onClick={() => setOperatorStep(2)}
+                      onClick={() => {
+                        playBackSound();
+                        setOperatorStep(2);
+                      }}
                       disabled={activeScanStatus === 'scanning'}
                       className="py-2.5 px-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-2 disabled:opacity-50"
                     >
@@ -743,8 +900,8 @@ export default function CheckInModal({
 
               {/* STEP 4: REVIEW SCANNED DETAILS (Compact Form + Inline Scan Complete Line + Continue) */}
               {operatorStep === 4 && (
-                <div className="flex-1 flex flex-col justify-between gap-3.5 animate-in fade-in duration-150">
-                  <div className="my-auto">
+                <div className="space-y-3 animate-in fade-in duration-150">
+                  <div>
                     {documentType === 'cnic' ? (
                       <CnicForm
                         data={cnicFormData}
@@ -760,10 +917,13 @@ export default function CheckInModal({
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 shrink-0">
+                  <div className="flex items-center justify-between gap-3 pt-1">
                     <button
                       type="button"
-                      onClick={() => setOperatorStep(3)}
+                      onClick={() => {
+                        playBackSound();
+                        setOperatorStep(3);
+                      }}
                       className="py-3 px-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-2"
                     >
                       <ArrowLeft className="w-4 h-4" />
@@ -772,7 +932,10 @@ export default function CheckInModal({
 
                     <button
                       type="button"
-                      onClick={() => setOperatorStep(5)}
+                      onClick={() => {
+                        playContinueSound();
+                        setOperatorStep(5);
+                      }}
                       disabled={!isDocumentValid}
                       className={`flex-1 max-w-xs py-3 px-6 rounded-xl text-xs sm:text-sm font-extrabold shadow-xs flex items-center justify-center gap-2 transition-all ${
                         isDocumentValid
@@ -845,6 +1008,10 @@ export default function CheckInModal({
             onClose();
           }}
           visit={createdVisit}
+          imageStorageStatus={imageStorageStatus}
+          imageStorageError={imageStorageError}
+          onRetrySaveImage={handleRetrySaveDocumentImage}
+          isRetryingImageSave={isRetryingImageSave}
           onViewCard={() => {
             setAutoPrintBadge(false);
             setShowBadge(true);

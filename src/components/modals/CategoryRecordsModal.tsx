@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { IconVisitorPass } from '@/components/icons/OperatorTaskIcons';
+import GatekeeperLoader from '@/components/ui/GatekeeperLoader';
 
 export interface CategoryModalConfig {
   isOpen: boolean;
@@ -35,6 +36,7 @@ interface CategoryRecordsModalProps {
   onClose: () => void;
   onViewPass: (visit: any) => void;
   onCheckOut: (visit: any) => void;
+  onViewPerson?: (visit: any) => void;
   onRefreshStats?: () => void;
 }
 
@@ -53,6 +55,7 @@ export default function CategoryRecordsModal({
   onClose,
   onViewPass,
   onCheckOut,
+  onViewPerson,
 }: CategoryRecordsModalProps) {
   const { language, t } = useLanguage();
   const [visits, setVisits] = useState<any[]>([]);
@@ -269,10 +272,10 @@ export default function CategoryRecordsModal({
         {/* Modal Body / Records View */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           {loading ? (
-            <div className="h-64 flex flex-col items-center justify-center gap-3 text-slate-400">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-              <p className="text-xs font-semibold">{t('loading_records', 'Loading records...')}</p>
-            </div>
+            <GatekeeperLoader
+              variant="section"
+              title={t('loading_records', 'Loading records...')}
+            />
           ) : visits.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center gap-2 text-slate-400 text-center p-6">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-2">
@@ -308,7 +311,12 @@ export default function CategoryRecordsModal({
                         className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors"
                       >
                         <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-3">
+                          <div
+                            onClick={() => onViewPerson && onViewPerson(visit)}
+                            className={`flex items-center gap-3 ${
+                              onViewPerson ? 'cursor-pointer group' : ''
+                            }`}
+                          >
                             <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700">
                               {visit.person?.photoUrl ? (
                                 /* eslint-disable-next-line @next/next/no-img-element */
@@ -322,11 +330,11 @@ export default function CategoryRecordsModal({
                               )}
                             </div>
                             <div>
-                              <p className="font-bold text-slate-900 dark:text-white text-sm">
+                              <p className="font-bold text-slate-900 dark:text-white text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                 {visit.person?.fullName}
                               </p>
                               <p className="text-[11px] text-slate-400 font-mono">
-                                {visit.person?.cnicNumber || visit.person?.phoneNumber || 'N/A'}
+                                {visit.person?.cnicNumber || visit.person?.dlsNumber || visit.person?.phoneNumber || 'N/A'}
                               </p>
                             </div>
                           </div>
@@ -410,7 +418,10 @@ export default function CategoryRecordsModal({
                     className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-3"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                      <div
+                        onClick={() => onViewPerson && onViewPerson(visit)}
+                        className={`flex items-center gap-3 ${onViewPerson ? 'cursor-pointer group' : ''}`}
+                      >
                         <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700">
                           {visit.person?.photoUrl ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
@@ -424,11 +435,11 @@ export default function CategoryRecordsModal({
                           )}
                         </div>
                         <div>
-                          <h4 className="font-bold text-sm text-slate-900 dark:text-white leading-snug">
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                             {visit.person?.fullName}
                           </h4>
                           <p className="text-[11px] text-slate-400 font-mono">
-                            {visit.person?.cnicNumber || visit.person?.phoneNumber || 'N/A'}
+                            {visit.person?.cnicNumber || visit.person?.dlsNumber || visit.person?.phoneNumber || 'N/A'}
                           </p>
                         </div>
                       </div>

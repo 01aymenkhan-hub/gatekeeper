@@ -99,6 +99,10 @@ model Person {
   permanentAddress   String?
   phoneNumber        String?
   photoUrl           String?
+  cnicImageData      String?
+  cnicImageMime      String?
+  dlsImageData       String?
+  dlsImageMime       String?
   company            String?
   belongings         String?
   isVip              Boolean        @default(false)

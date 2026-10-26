@@ -24,7 +24,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import VisitorBadgeModal from '@/components/modals/VisitorBadgeModal';
+import IdentityDocumentImagesCard from '@/components/visitors/IdentityDocumentImagesCard';
+import GatekeeperLoader from '@/components/ui/GatekeeperLoader';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function PersonDetailPage({
   params,
@@ -34,6 +37,7 @@ export default function PersonDetailPage({
   const resolvedParams = use(params);
   const { id } = resolvedParams;
   const { user } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
 
   const [person, setPerson] = useState<any>(null);
@@ -152,9 +156,10 @@ export default function PersonDetailPage({
   if (loading) {
     return (
       <AppLayout>
-        <div className="p-12 text-center text-slate-400 text-xs">
-          Loading person profile and history...
-        </div>
+        <GatekeeperLoader
+          variant="section"
+          title={t('loading_person_details', 'Loading person details...')}
+        />
       </AppLayout>
     );
   }
@@ -344,6 +349,17 @@ export default function PersonDetailPage({
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Identity Document Images Section */}
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs space-y-4">
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+              {t('identity_documents_heading', 'Identity Document Images')}
+            </h2>
+          </div>
+          <IdentityDocumentImagesCard person={person} />
         </div>
 
         {/* Additional Details & Belongings Section */}

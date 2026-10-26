@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Check, Printer, IdCard, UserPlus, X } from 'lucide-react';
+import { Check, Printer, IdCard, UserPlus, X, AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { playSelectSound, playContinueSound } from '@/utils/interactionSound';
 
 interface RegistrationSuccessModalProps {
   isOpen: boolean;
@@ -13,6 +14,10 @@ interface RegistrationSuccessModalProps {
   onViewCard: () => void;
   onPrintBadge: () => void;
   onRegisterNext: () => void;
+  imageStorageStatus?: 'saved' | 'failed' | 'none';
+  imageStorageError?: string | null;
+  onRetrySaveImage?: () => Promise<void>;
+  isRetryingImageSave?: boolean;
 }
 
 export default function RegistrationSuccessModal({
@@ -22,6 +27,10 @@ export default function RegistrationSuccessModal({
   onViewCard,
   onPrintBadge,
   onRegisterNext,
+  imageStorageStatus = 'none',
+  imageStorageError = null,
+  onRetrySaveImage,
+  isRetryingImageSave = false,
 }: RegistrationSuccessModalProps) {
   const { user } = useAuth();
   const { language, t } = useLanguage();
@@ -100,6 +109,43 @@ export default function RegistrationSuccessModal({
               </div>
             )}
           </div>
+
+          {/* Distinct ID Image Save Failure Notice & Retry */}
+          {imageStorageStatus === 'failed' && (
+            <div className="mt-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-left space-y-2">
+              <div className="flex items-start gap-2 text-xs">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold">
+                    Visitor registered, but saving the scanned ID card image failed.
+                  </p>
+                  {imageStorageError && (
+                    <p className="text-[11px] opacity-85 mt-0.5">{imageStorageError}</p>
+                  )}
+                </div>
+              </div>
+              {onRetrySaveImage && (
+                <button
+                  type="button"
+                  onClick={onRetrySaveImage}
+                  disabled={isRetryingImageSave}
+                  className="w-full py-1.5 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+                >
+                  {isRetryingImageSave ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving ID image...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Retry Saving ID Image</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="mt-6 flex flex-col gap-2.5">
@@ -217,12 +263,57 @@ export default function RegistrationSuccessModal({
           )}
         </div>
 
+        {/* Distinct ID Image Save Failure Notice & Retry */}
+        {imageStorageStatus === 'failed' && (
+          <div className="mt-4 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 space-y-2">
+            <div
+              className={`flex items-start gap-2 text-xs font-bold ${
+                isUr ? 'flex-row-reverse text-right' : 'flex-row text-left'
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p>{t('image_save_failed_warning', 'Visitor registered, but saving the scanned ID card image failed.')}</p>
+                {imageStorageError && (
+                  <p className="text-[11px] font-medium opacity-85 mt-0.5">{imageStorageError}</p>
+                )}
+              </div>
+            </div>
+            {onRetrySaveImage && (
+              <button
+                type="button"
+                onClick={() => {
+                  playSelectSound();
+                  void onRetrySaveImage();
+                }}
+                disabled={isRetryingImageSave}
+                className="w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+              >
+                {isRetryingImageSave ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>{t('saving_id_image', 'Saving ID image...')}</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>{t('retry_save_image_btn', 'Retry Saving ID Image')}</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons — Enhanced Print Badge & View Card */}
         <div className="mt-6 flex flex-col gap-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Print Badge with Subtle Wave/Pulse Animation */}
             <button
-              onClick={onPrintBadge}
+              onClick={() => {
+                playContinueSound();
+                onPrintBadge();
+              }}
               className="w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm sm:text-base font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer gk-pulse-blue"
             >
               <Printer className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
@@ -231,7 +322,10 @@ export default function RegistrationSuccessModal({
 
             {/* View Card with Larger Icon & Text */}
             <button
-              onClick={onViewCard}
+              onClick={() => {
+                playSelectSound();
+                onViewCard();
+              }}
               className="w-full py-3.5 px-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-[0.98] text-slate-800 dark:text-slate-100 text-sm sm:text-base font-extrabold shadow-2xs flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <IdCard className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400 shrink-0" />
@@ -240,7 +334,10 @@ export default function RegistrationSuccessModal({
           </div>
 
           <button
-            onClick={onRegisterNext}
+            onClick={() => {
+              playContinueSound();
+              onRegisterNext();
+            }}
             className="w-full py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-100 text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             <UserPlus className="w-4 h-4 shrink-0" />

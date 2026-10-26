@@ -5,6 +5,7 @@ import { RotateCcw } from "lucide-react";
 import { DlsData } from "../types/dls";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { playBackSound } from "@/utils/interactionSound";
 
 interface DlsFormProps {
   /** The current DLS form data (controlled by parent). */
@@ -183,9 +184,9 @@ export default function DlsForm({ data, onChange, onRescan }: DlsFormProps) {
 
   /* ================= OPERATOR STEP 4: COMPACT REVIEW SCANNED DETAILS (DLS) ================= */
   const textAlignClass = isUr ? "text-right" : "text-left";
-  const opLabelClass = `block text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 mb-1 truncate ${textAlignClass}`;
+  const opLabelClass = `block text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 mb-1 ${textAlignClass}`;
   const opInputClass =
-    "block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors shadow-2xs";
+    "block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors shadow-2xs";
 
   return (
     <section className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 p-3.5 sm:p-4">
@@ -202,7 +203,10 @@ export default function DlsForm({ data, onChange, onRescan }: DlsFormProps) {
           {onRescan && (
             <button
               type="button"
-              onClick={onRescan}
+              onClick={() => {
+                playBackSound();
+                onRescan();
+              }}
               className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" />
@@ -217,9 +221,9 @@ export default function DlsForm({ data, onChange, onRescan }: DlsFormProps) {
         </h2>
       </div>
 
-      <div className="space-y-2.5 sm:space-y-3">
+      <div className="space-y-2.5">
         {/* Row 1: Licence Number + Full Name */}
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <div>
             <label htmlFor="licenseNumber" className={opLabelClass}>
               {t("field_license_no", "Licence Number")} <span className="text-red-500">*</span>

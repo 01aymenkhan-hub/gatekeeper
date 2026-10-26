@@ -3,6 +3,11 @@ import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { generatePassCode } from '@/lib/qrUtils';
+import {
+  validateDocumentImageDataUrl,
+  sanitizeVisitForClient,
+  sanitizePersonForClient,
+} from '@/lib/personSanitizer';
 
 function formatCardNoForStorage(raw: string): string {
   return raw
@@ -43,6 +48,8 @@ export async function POST(request: NextRequest) {
       permanentAddress,
       phoneNumber,
       photoUrl,
+      cnicImageData,
+      dlsImageData,
       company,
       hostName,
       department,
@@ -173,7 +180,7 @@ export async function POST(request: NextRequest) {
         );
         blacklistErr.status = 403;
         blacklistErr.blacklisted = true;
-        blacklistErr.person = existingPerson;
+        blacklistErr.person = sanitizePersonForClient(existingPerson);
         throw blacklistErr;
       }
 
@@ -214,7 +221,7 @@ export async function POST(request: NextRequest) {
         presentAddress: presentAddress?.trim() || null,
         permanentAddress: permanentAddress?.trim() || null,
         phoneNumber: cleanPhone,
-        photoUrl: photoUrl || null,
+        photoUrl: photoUrl || existingPerson?.photoUrl || null,
         company: company?.trim() || null,
         belongings: belongings?.trim() || null,
       };
@@ -267,6 +274,59 @@ export async function POST(request: NextRequest) {
       return { visit: createdVisit, person: savedPerson };
     });
 
+    // Save scanned CNIC / DLS document images separately so OCR/registration and image-saving outcomes remain distinguishable
+    let imageStorageStatus: 'saved' | 'failed' | 'none' = 'none';
+    let imageStorageError: string | null = null;
+    const hasIncomingCnicImage = typeof cnicImageData === 'string' && cnicImageData.trim().length > 0;
+    const hasIncomingDlsImage = typeof dlsImageData === 'string' && dlsImageData.trim().length > 0;
+
+    if (hasIncomingCnicImage || hasIncomingDlsImage) {
+      const imageUpdateData: Record<string, string> = {};
+      const validationErrors: string[] = [];
+
+      if (hasIncomingCnicImage) {
+        try {
+          const cnicValidation = validateDocumentImageDataUrl(cnicImageData);
+          imageUpdateData.cnicImageData = cnicValidation.normalizedDataUrl;
+          imageUpdateData.cnicImageMime = cnicValidation.mime;
+        } catch (err: any) {
+          validationErrors.push(`CNIC image: ${err?.message || 'Invalid image'}`);
+        }
+      }
+
+      if (hasIncomingDlsImage) {
+        try {
+          const dlsValidation = validateDocumentImageDataUrl(dlsImageData);
+          imageUpdateData.dlsImageData = dlsValidation.normalizedDataUrl;
+          imageUpdateData.dlsImageMime = dlsValidation.mime;
+        } catch (err: any) {
+          validationErrors.push(`Driving Licence image: ${err?.message || 'Invalid image'}`);
+        }
+      }
+
+      if (validationErrors.length > 0) {
+        imageStorageStatus = 'failed';
+        imageStorageError = validationErrors.join('; ');
+      }
+
+      if (Object.keys(imageUpdateData).length > 0) {
+        try {
+          const updatedPersonWithImages = await prisma.person.update({
+            where: { id: person.id },
+            data: imageUpdateData,
+          });
+          visit.person = updatedPersonWithImages;
+          if (validationErrors.length === 0) {
+            imageStorageStatus = 'saved';
+          }
+        } catch (imgErr: any) {
+          console.error('Failed to store identity document image for person:', person.id, imgErr?.message);
+          imageStorageStatus = 'failed';
+          imageStorageError = 'Failed to save scanned ID card image to database.';
+        }
+      }
+    }
+
     await logAudit({
       action: 'CHECK_IN',
       entityType: 'Visit',
@@ -278,6 +338,7 @@ export async function POST(request: NextRequest) {
         host: visit.hostName,
         department: visit.department,
         cardNo: visit.visitorCardNo,
+        imageStorageStatus,
       },
       performedById: user.id,
     });
@@ -285,7 +346,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Visitor checked in successfully',
-      visit,
+      visit: sanitizeVisitForClient(visit),
+      imageStorageStatus,
+      imageStorageError,
     });
   } catch (error: any) {
     if (error?.status) {
@@ -294,7 +357,7 @@ export async function POST(request: NextRequest) {
           error: error.message,
           code: error.code,
           blacklisted: error.blacklisted,
-          person: error.person,
+          person: error.person ? sanitizePersonForClient(error.person) : undefined,
           activeVisitId: error.activeVisitId,
           visitNumber: error.visitNumber,
         },

@@ -6,7 +6,9 @@ import Header from './Header';
 import CheckInModal from '../modals/CheckInModal';
 import CheckOutModal from '../modals/CheckOutModal';
 import CheckStatusModal from '../modals/CheckStatusModal';
+import GatekeeperLoader from '../ui/GatekeeperLoader';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { useRouter } from 'next/navigation';
 
 export default function AppLayout({
@@ -17,6 +19,7 @@ export default function AppLayout({
   onRefreshData?: () => void;
 }) {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
 
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
@@ -33,14 +36,10 @@ export default function AppLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#090d16]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-semibold text-slate-500 tracking-wider uppercase">
-            Loading Gate Keeper...
-          </p>
-        </div>
-      </div>
+      <GatekeeperLoader
+        variant="fullscreen"
+        title={t('loading_gatekeeper', 'Loading Gatekeeper...')}
+      />
     );
   }
 
