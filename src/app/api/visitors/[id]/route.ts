@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
-import { sanitizePersonForClient } from '@/lib/personSanitizer';
+import { sanitizePersonWithDbFlags } from '@/lib/personSanitizer';
 
 export async function GET(
   request: NextRequest,
@@ -36,10 +36,11 @@ export async function GET(
     }
 
     const activeVisit = person.visits.find((v: { status: string }) => v.status === 'CHECKED_IN') || null;
+    const sanitizedPerson = await sanitizePersonWithDbFlags(person);
 
     return NextResponse.json({
       success: true,
-      person: sanitizePersonForClient(person),
+      person: sanitizedPerson,
       activeVisit,
       totalVisits: person.visits.length,
     });
@@ -97,9 +98,11 @@ export async function PATCH(
       performedById: user.id,
     });
 
+    const sanitizedPerson = await sanitizePersonWithDbFlags(updatedPerson);
+
     return NextResponse.json({
       success: true,
-      person: sanitizePersonForClient(updatedPerson),
+      person: sanitizedPerson,
     });
   } catch (error: any) {
     console.error('Error updating person:', error);

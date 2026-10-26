@@ -1,47 +1,14 @@
 'use client';
 
-const SOUND_PREF_KEY = 'gk_operator_sound_enabled';
-const SOUND_EVENT_NAME = 'gk-sound-pref-changed';
 const DEDUPE_COOLDOWN_MS = 85;
+const SUCCESS_DEDUPE_COOLDOWN_MS = 1200;
 
 let sharedAudioCtx: AudioContext | null = null;
 let lastPlayedTimestamp = 0;
+let lastSuccessPlayedTimestamp = 0;
 
 export function isOperatorSoundEnabled(): boolean {
-  if (typeof window === 'undefined') return true;
-  try {
-    const saved = window.localStorage.getItem(SOUND_PREF_KEY);
-    if (saved === null) return true;
-    return saved !== 'false';
-  } catch {
-    return true;
-  }
-}
-
-export function setOperatorSoundEnabled(enabled: boolean): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(SOUND_PREF_KEY, enabled ? 'true' : 'false');
-    window.dispatchEvent(new CustomEvent(SOUND_EVENT_NAME, { detail: { enabled } }));
-  } catch {
-    // Ignore storage errors in restricted environments
-  }
-}
-
-export function subscribeOperatorSoundPreference(
-  callback: (enabled: boolean) => void
-): () => void {
-  if (typeof window === 'undefined') return () => {};
-  const handler = (event: Event) => {
-    const customEvent = event as CustomEvent<{ enabled: boolean }>;
-    if (customEvent.detail && typeof customEvent.detail.enabled === 'boolean') {
-      callback(customEvent.detail.enabled);
-    } else {
-      callback(isOperatorSoundEnabled());
-    }
-  };
-  window.addEventListener(SOUND_EVENT_NAME, handler);
-  return () => window.removeEventListener(SOUND_EVENT_NAME, handler);
+  return true;
 }
 
 function getAudioContext(): AudioContext | null {
@@ -64,7 +31,7 @@ function getAudioContext(): AudioContext | null {
 }
 
 function canPlayNow(): boolean {
-  if (!isOperatorSoundEnabled()) return false;
+  if (typeof window === 'undefined') return false;
   const now = performance.now();
   if (now - lastPlayedTimestamp < DEDUPE_COOLDOWN_MS) {
     return false;
@@ -74,7 +41,7 @@ function canPlayNow(): boolean {
 }
 
 /**
- * Soft, subtle micro-tap sound for selecting an option (host, department, gender, toggle)
+ * Soft, subtle micro-tap sound for selecting an option (opening Register, category, host, department, photo capture)
  */
 export function playSelectSound(): void {
   if (!canPlayNow()) return;
@@ -204,5 +171,50 @@ export function playBackSound(): void {
     osc.stop(now + 0.056);
   } catch {
     // Fail silently
+  }
+}
+
+/**
+ * Distinct, polished banking-style confirmation chime played ONLY ONCE when visitor registration succeeds
+ */
+export function playRegistrationSuccessSound(): void {
+  if (typeof window === 'undefined') return;
+  const nowPerf = performance.now();
+  if (nowPerf - lastSuccessPlayedTimestamp < SUCCESS_DEDUPE_COOLDOWN_MS) {
+    return;
+  }
+  lastSuccessPlayedTimestamp = nowPerf;
+
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const base = ctx.currentTime + 0.015;
+    const notes = [
+      { freq: 523.25, start: 0.0, duration: 0.11, peak: 0.075 }, // C5
+      { freq: 659.25, start: 0.075, duration: 0.12, peak: 0.08 }, // E5
+      { freq: 783.99, start: 0.15, duration: 0.14, peak: 0.085 }, // G5
+      { freq: 1046.5, start: 0.23, duration: 0.28, peak: 0.095 }, // C6
+    ];
+
+    for (const note of notes) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(note.freq, base + note.start);
+
+      gain.gain.setValueAtTime(0.0001, base + note.start);
+      gain.gain.exponentialRampToValueAtTime(note.peak, base + note.start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, base + note.start + note.duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(base + note.start);
+      osc.stop(base + note.start + note.duration + 0.01);
+    }
+  } catch {
+    // Fail silently if audio playback is restricted
   }
 }

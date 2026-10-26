@@ -7,22 +7,37 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set([
   'image/webp',
 ]);
 
-const MAX_INPUT_FILE_BYTES = 10 * 1024 * 1024; // 10 MB max input file
+const MAX_INPUT_FILE_BYTES = 15 * 1024 * 1024; // 15 MB max input camera/upload file
 
 export type CompressedImageResult =
   | { ok: true; dataUrl: string; error?: undefined }
   | { ok: false; error: string; dataUrl?: undefined };
 
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string' && reader.result.startsWith('data:image/')) {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Failed to read image file as data URL'));
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read image file'));
+    reader.readAsDataURL(file);
+  });
+}
+
 /**
- * Compresses an identity document image (CNIC or DLS) or visitor photo into a
- * clean, readable JPEG data URL (~80-150KB) suitable for secure database storage.
- * Never throws: returns { ok: true, dataUrl } or { ok: false, error }.
+ * Retains and optimizes the complete scanned identity document image (CNIC or DLS)
+ * or visitor photo into a high-readability JPEG data URL suitable for reliable database storage.
+ * Falls back to raw FileReader data URL if canvas re-encoding is unavailable.
  */
 export async function compressIdentityImageFile(
   file: File,
-  maxWidth: number = 1000,
-  maxHeight: number = 640,
-  quality: number = 0.84
+  maxWidth: number = 1600,
+  maxHeight: number = 1100,
+  quality: number = 0.88
 ): Promise<CompressedImageResult> {
   if (!file) {
     return { ok: false, error: 'No image file provided' };
@@ -37,14 +52,14 @@ export async function compressIdentityImageFile(
   }
 
   if (file.size > MAX_INPUT_FILE_BYTES) {
-    return { ok: false, error: 'Image file is too large (maximum 10 MB).' };
+    return { ok: false, error: 'Image file is too large (maximum 15 MB).' };
   }
 
   return new Promise<CompressedImageResult>((resolve) => {
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
 
-    img.onload = () => {
+    img.onload = async () => {
       try {
         URL.revokeObjectURL(objectUrl);
 
@@ -63,7 +78,8 @@ export async function compressIdentityImageFile(
         const ctx = canvas.getContext('2d');
 
         if (!ctx) {
-          resolve({ ok: false, error: 'Unable to initialize image compression canvas' });
+          const rawUrl = await readFileAsDataUrl(file);
+          resolve({ ok: true, dataUrl: rawUrl });
           return;
         }
 
@@ -72,23 +88,34 @@ export async function compressIdentityImageFile(
         ctx.drawImage(img, 0, 0, targetW, targetH);
 
         const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-        if (!compressedDataUrl || !compressedDataUrl.startsWith('data:image/jpeg;base64,')) {
-          resolve({ ok: false, error: 'Failed to encode compressed identity image' });
+        if (!compressedDataUrl || !compressedDataUrl.startsWith('data:image/')) {
+          const rawUrl = await readFileAsDataUrl(file);
+          resolve({ ok: true, dataUrl: rawUrl });
           return;
         }
 
         resolve({ ok: true, dataUrl: compressedDataUrl });
-      } catch (err) {
-        resolve({
-          ok: false,
-          error: err instanceof Error ? err.message : 'Failed to compress image',
-        });
+      } catch {
+        try {
+          const rawUrl = await readFileAsDataUrl(file);
+          resolve({ ok: true, dataUrl: rawUrl });
+        } catch (fallbackErr) {
+          resolve({
+            ok: false,
+            error: fallbackErr instanceof Error ? fallbackErr.message : 'Failed to process image',
+          });
+        }
       }
     };
 
-    img.onerror = () => {
+    img.onerror = async () => {
       URL.revokeObjectURL(objectUrl);
-      resolve({ ok: false, error: 'Failed to decode captured image file' });
+      try {
+        const rawUrl = await readFileAsDataUrl(file);
+        resolve({ ok: true, dataUrl: rawUrl });
+      } catch {
+        resolve({ ok: false, error: 'Failed to decode captured image file' });
+      }
     };
 
     img.src = objectUrl;

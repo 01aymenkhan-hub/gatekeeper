@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, User, ShieldAlert, Award, Clock, Calendar, CheckCircle2, History, ChevronRight, ArrowLeft, Loader2 } from 'lucide-react';
 import IdentityDocumentImagesCard from '@/components/visitors/IdentityDocumentImagesCard';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface CheckStatusModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface CheckStatusModalProps {
 }
 
 export default function CheckStatusModal({ isOpen, onClose, initialPerson }: CheckStatusModalProps) {
+  const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -365,8 +367,13 @@ export default function CheckStatusModal({ isOpen, onClose, initialPerson }: Che
                   </div>
                 )}
 
-                {/* Identity Document Images (CNIC / Driving Licence) */}
-                <IdentityDocumentImagesCard person={result.person} compact />
+                {/* Scanned ID Card Images (CNIC / Driving Licence) */}
+                <div className="space-y-2 pt-1">
+                  <h4 className="text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    {t('identity_documents_title', 'Scanned ID Card Images')}
+                  </h4>
+                  <IdentityDocumentImagesCard person={result.person} compact />
+                </div>
               </div>
 
               {/* Total visits stat */}

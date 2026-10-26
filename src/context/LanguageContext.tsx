@@ -28,14 +28,14 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   },
 
   // Main Action Tiles
-  register_visitor: { en: 'Register Visitor', ur: 'نیا وزیٹر درج کریں' },
+  register_visitor: { en: 'Register', ur: 'رجسٹر کریں' },
   register_visitor_desc: { en: 'CNIC / DLS OCR Check-in', ur: 'شناختی کارڈ یا لائسنس اسکین' },
   checkout_visitor: { en: 'Check Out Visitor', ur: 'وزیٹر کی چھٹی کریں' },
   checkout_visitor_desc: { en: 'Scan QR or enter pass', ur: 'کیو آر کوڈ یا پاس سے باہر بھیجیں' },
   check_status: { en: 'Check Visitor Status', ur: 'وزیٹر کی تفصیل دیکھیں' },
   check_status_desc: { en: 'Search badge or phone', ur: 'نام، کارڈ یا فون سے تلاش کریں' },
-  add_vendor: { en: 'Add Vendor', ur: 'وینڈر درج کریں' },
-  add_vendor_desc: { en: 'Supplies & contractors', ur: 'سامان یا ٹھیکیدار کی انٹری' },
+  add_vendor: { en: 'Special Guest', ur: 'خاص مہمان' },
+  add_vendor_desc: { en: 'VIP & special guest entry', ur: 'خاص مہمان کی انٹری' },
 
   // Action Buttons
   add_visitor_btn: { en: '+ Add Visitor', ur: '+ نیا وزیٹر' },
@@ -226,6 +226,15 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   dept_supply_chain: { en: 'Supply Chain', ur: 'سپلائی چین' },
   dept_executive_office: { en: 'Executive Office', ur: 'ایگزیکٹو آفس' },
   dept_hr: { en: 'HR', ur: 'ایچ آر' },
+  loading_departments: { en: 'Loading departments...', ur: 'شعبے لوڈ ہو رہے ہیں...' },
+  no_departments_configured: {
+    en: 'Departments have not been configured yet.',
+    ur: 'ابھی تک کوئی شعبہ (ڈیپارٹمنٹ) شامل نہیں کیا گیا۔',
+  },
+  departments_load_error: {
+    en: 'Unable to load departments. Please try again.',
+    ur: 'شعبے لوڈ نہیں ہو سکے۔ براہ کرم دوبارہ کوشش کریں۔',
+  },
 
   // Step 3: Scan ID Card
   choose_id_scan_title: {
@@ -361,8 +370,8 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
 
   // ── Identity Document Images (CNIC / Driving Licence) ──
   identity_documents_title: {
-    en: 'Identity Document Images',
-    ur: 'شناختی دستاویزات کی تصاویر',
+    en: 'Scanned ID Card Images',
+    ur: 'اسکین شدہ شناختی کارڈ کی تصاویر',
   },
   cnic_image_label: {
     en: 'CNIC Image',

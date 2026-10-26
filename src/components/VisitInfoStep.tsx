@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Users,
   Briefcase,
@@ -14,6 +14,8 @@ import {
   User,
   Search,
   AlertCircle,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { VisitInfoData } from "../types/visitor";
 import { useAuth } from "@/context/AuthContext";
@@ -32,6 +34,13 @@ interface VisitInfoStepProps {
   onCategoryChange?: (category: string) => void;
   operatorMode?: "category" | "visit-info";
   onBack?: () => void;
+}
+
+interface DynamicDepartmentOption {
+  id: string;
+  name: string;
+  hodName?: string;
+  whatsappNumber?: string;
 }
 
 const CATEGORIES = [
@@ -97,15 +106,17 @@ const CATEGORIES = [
   },
 ];
 
-// Existing department options from project visits & placeholders
-const BASE_DEPARTMENTS = [
-  { value: "Accounts", labelKey: "dept_accounts" },
-  { value: "Production", labelKey: "dept_production" },
-  { value: "IT", labelKey: "dept_it" },
-  { value: "Admin", labelKey: "dept_admin" },
-  { value: "Operations", labelKey: "dept_operations" },
-  { value: "Procurement", labelKey: "dept_procurement" },
-];
+const DEPT_TRANSLATION_KEY_MAP: Record<string, string> = {
+  accounts: "dept_accounts",
+  production: "dept_production",
+  it: "dept_it",
+  admin: "dept_admin",
+  operations: "dept_operations",
+  procurement: "dept_procurement",
+  "supply chain": "dept_supply_chain",
+  "executive office": "dept_executive_office",
+  hr: "dept_hr",
+};
 
 export default function VisitInfoStep({
   data,
@@ -124,8 +135,12 @@ export default function VisitInfoStep({
   const isAdvancingRef = useRef(false);
   const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [recentHosts, setRecentHosts] = useState<string[]>([]);
-  const [recentDepartments, setRecentDepartments] = useState<string[]>([]);
   const [isMeetInputFocused, setIsMeetInputFocused] = useState(false);
+
+  // Dynamic departments state for Operator Step 2
+  const [departments, setDepartments] = useState<DynamicDepartmentOption[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState<boolean>(!isAdmin);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
 
   useEffect(() => {
     isAdvancingRef.current = false;
@@ -136,7 +151,80 @@ export default function VisitInfoStep({
     };
   }, [operatorMode]);
 
-  // Fetch existing hosts and departments from recent visits in the database
+  const fetchActiveDepartments = useCallback(async () => {
+    if (isAdmin) return;
+    setDepartmentsLoading(true);
+    setDepartmentsError(null);
+    try {
+      const res = await fetch("/api/departments?activeOnly=true");
+      if (!res.ok) {
+        throw new Error("Failed to load departments");
+      }
+      const json = await res.json();
+      if (Array.isArray(json?.departments)) {
+        setDepartments(
+          json.departments.map((d: { id: string; name: string; hodName?: string; whatsappNumber?: string }) => ({
+            id: d.id,
+            name: d.name,
+            hodName: d.hodName,
+            whatsappNumber: d.whatsappNumber,
+          }))
+        );
+      } else {
+        setDepartments([]);
+      }
+    } catch {
+      setDepartmentsError(
+        t("departments_load_error", "Unable to load departments. Please try again.")
+      );
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  }, [isAdmin, t]);
+
+  // Fetch active departments from Admin Department Management when Operator Step 2 opens
+  useEffect(() => {
+    if (isAdmin) return;
+    let cancelled = false;
+    fetch("/api/departments?activeOnly=true")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to load departments");
+        return res.json();
+      })
+      .then((json) => {
+        if (cancelled) return;
+        setDepartmentsError(null);
+        if (Array.isArray(json?.departments)) {
+          setDepartments(
+            json.departments.map((d: { id: string; name: string; hodName?: string; whatsappNumber?: string }) => ({
+              id: d.id,
+              name: d.name,
+              hodName: d.hodName,
+              whatsappNumber: d.whatsappNumber,
+            }))
+          );
+        } else {
+          setDepartments([]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDepartmentsError(
+            t("departments_load_error", "Unable to load departments. Please try again.")
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setDepartmentsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, operatorMode, t]);
+
+  // Fetch existing hosts from recent visits in the database for autocomplete
   useEffect(() => {
     if (isAdmin) return;
     let cancelled = false;
@@ -145,9 +233,7 @@ export default function VisitInfoStep({
       .then((json) => {
         if (cancelled || !json?.visits || !Array.isArray(json.visits)) return;
         const hostSet = new Set<string>();
-        const deptSet = new Set<string>();
         const hosts: string[] = [];
-        const depts: string[] = [];
 
         for (const v of json.visits) {
           const h = (v.hostName || "").trim();
@@ -158,44 +244,14 @@ export default function VisitInfoStep({
               hosts.push(h);
             }
           }
-          const d = (v.department || "").trim();
-          if (d && d.length >= 2) {
-            const key = d.toLowerCase();
-            if (!deptSet.has(key)) {
-              deptSet.add(key);
-              depts.push(d);
-            }
-          }
         }
         setRecentHosts(hosts.slice(0, 8));
-        setRecentDepartments(depts);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [isAdmin]);
-
-  // Build up to 6 department options combining existing database departments and standard facility departments
-  const departmentOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const list: { value: string; labelKey?: string }[] = [];
-
-    for (const base of BASE_DEPARTMENTS) {
-      seen.add(base.value.toLowerCase());
-      list.push(base);
-    }
-
-    for (const d of recentDepartments) {
-      const lower = d.toLowerCase();
-      if (!seen.has(lower) && list.length < 6) {
-        seen.add(lower);
-        list.push({ value: d });
-      }
-    }
-
-    return list.slice(0, 6);
-  }, [recentDepartments]);
 
   // Filter autocomplete dropdown suggestions ONLY when the operator is actively typing a query
   const matchingSearchHosts = useMemo(() => {
@@ -421,29 +477,17 @@ export default function VisitInfoStep({
     }
   };
 
-  const handleSelectDepartmentCard = (deptValue: string) => {
-    const updated = { ...data, department: deptValue };
+  const handleSelectDepartmentCard = (dept: DynamicDepartmentOption) => {
+    const updated: VisitInfoData = {
+      ...data,
+      department: dept.name,
+      departmentId: dept.id,
+    };
     onChange(updated);
-    if (updated.meetName.trim().length > 0 && deptValue.trim().length > 0) {
+    if (updated.meetName.trim().length > 0 && dept.name.trim().length > 0) {
       triggerSafeNext(true);
     } else {
       playSelectSound();
-    }
-  };
-
-  const handleCustomDepartmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const nextDept = e.target.value;
-    const updated = { ...data, department: nextDept };
-    onChange(updated);
-
-    if (autoAdvanceTimerRef.current) {
-      clearTimeout(autoAdvanceTimerRef.current);
-    }
-
-    if (updated.meetName.trim().length > 0 && nextDept.trim().length >= 2) {
-      autoAdvanceTimerRef.current = setTimeout(() => {
-        triggerSafeNext(true);
-      }, 950);
     }
   };
 
@@ -454,6 +498,11 @@ export default function VisitInfoStep({
         triggerSafeNext(true);
       }
     }
+  };
+
+  const getLocalizedDepartmentLabel = (name: string): string => {
+    const key = DEPT_TRANSLATION_KEY_MAP[name.trim().toLowerCase()];
+    return key ? t(key, name) : name;
   };
 
   return (
@@ -523,55 +572,64 @@ export default function VisitInfoStep({
         </div>
       </div>
 
-      {/* 2. Department (5–6 Compact Selectable Cards/Buttons) */}
+      {/* 2. Department (Dynamic from Admin Department Management — no custom text input) */}
       <div className="bg-slate-50/70 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 sm:p-4 space-y-2.5">
-        <label
-          htmlFor="department"
+        <div
           className={`block text-xs sm:text-sm font-extrabold text-slate-800 dark:text-slate-100 ${textAlignClass}`}
         >
           {t("department_label", "Department")} <span className="text-red-500">*</span>
-        </label>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {departmentOptions.map((dept) => {
-            const isSelectedDept =
-              data.department.trim().toLowerCase() === dept.value.toLowerCase();
-            return (
-              <button
-                key={dept.value}
-                type="button"
-                onClick={() => handleSelectDepartmentCard(dept.value)}
-                aria-pressed={isSelectedDept}
-                className={`relative px-3 py-2.5 rounded-xl border-2 text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer min-h-[46px] active:scale-[0.98] ${
-                  isSelectedDept
-                    ? "border-blue-600 bg-blue-600 text-white shadow-xs"
-                    : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-blue-400 dark:hover:border-blue-500"
-                }`}
-              >
-                <Building2 className="w-4 h-4 shrink-0" />
-                <span className="truncate">
-                  {dept.labelKey ? t(dept.labelKey, dept.value) : dept.value}
-                </span>
-              </button>
-            );
-          })}
         </div>
 
-        {/* Compact custom department input fallback */}
-        <input
-          id="department"
-          name="department"
-          type="text"
-          value={data.department}
-          onChange={handleCustomDepartmentChange}
-          onKeyDown={handleFieldKeyDown}
-          placeholder={t("department_placeholder", "Or type another department...")}
-          className={`block w-full rounded-xl border px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-slate-900 focus:outline-none transition-colors ${textAlignClass} ${
-            isDepartmentValid
-              ? "border-emerald-500/80 dark:border-emerald-500/70"
-              : "border-slate-200 dark:border-slate-700 focus:border-blue-500"
-          }`}
-        />
+        {departmentsLoading ? (
+          <div className="py-5 flex items-center justify-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-bold">
+            <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
+            <span>{t("loading_departments", "Loading departments...")}</span>
+          </div>
+        ) : departmentsError ? (
+          <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/70 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+            <span className="text-xs font-bold text-rose-700 dark:text-rose-300 text-center sm:text-left">
+              {departmentsError}
+            </span>
+            <button
+              type="button"
+              onClick={fetchActiveDepartments}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold cursor-pointer shrink-0"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>{t("retry", "Retry")}</span>
+            </button>
+          </div>
+        ) : departments.length === 0 ? (
+          <div className="p-4 rounded-xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-center">
+            <p className="text-xs sm:text-sm font-bold text-amber-800 dark:text-amber-200">
+              {t("no_departments_configured", "Departments have not been configured yet.")}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {departments.map((dept) => {
+              const isSelectedDept =
+                (data.departmentId && data.departmentId === dept.id) ||
+                data.department.trim().toLowerCase() === dept.name.toLowerCase();
+              return (
+                <button
+                  key={dept.id}
+                  type="button"
+                  onClick={() => handleSelectDepartmentCard(dept)}
+                  aria-pressed={isSelectedDept}
+                  className={`relative px-3 py-2.5 rounded-xl border-2 text-xs sm:text-sm font-extrabold transition-all flex items-center justify-center gap-1.5 text-center cursor-pointer min-h-[46px] active:scale-[0.98] ${
+                    isSelectedDept
+                      ? "border-blue-600 bg-blue-600 text-white shadow-xs"
+                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:border-blue-400 dark:hover:border-blue-500"
+                  }`}
+                >
+                  <Building2 className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{getLocalizedDepartmentLabel(dept.name)}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Missing selection indicator */}

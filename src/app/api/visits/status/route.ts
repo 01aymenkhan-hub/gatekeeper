@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { normalizeSearchValue, getCnicHyphenatedVariants } from '@/lib/searchUtils';
-import { sanitizePersonForClient } from '@/lib/personSanitizer';
+import { sanitizePersonForClient, getPersonImageFlagsMap } from '@/lib/personSanitizer';
 
 export async function GET(request: NextRequest) {
   try {
@@ -120,6 +120,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    const imageFlagsMap = await getPersonImageFlagsMap(persons.map((p) => p.id));
+
     // Build matches array
     const matches = await Promise.all(
       persons.map(async (p) => {
@@ -130,10 +132,15 @@ export async function GET(request: NextRequest) {
 
         const latestVisit = p.visits[0] || null;
         const currentCardNo = activeVisit?.visitorCardNo || latestVisit?.visitorCardNo || null;
+        const dbFlags = imageFlagsMap.get(p.id);
 
         return {
           id: p.id,
-          person: sanitizePersonForClient(p),
+          person: sanitizePersonForClient({
+            ...p,
+            hasCnicImage: dbFlags ? dbFlags.hasCnicImage : undefined,
+            hasDlsImage: dbFlags ? dbFlags.hasDlsImage : undefined,
+          }),
           activeVisit,
           isCurrentlyInside: !!activeVisit,
           latestVisit,

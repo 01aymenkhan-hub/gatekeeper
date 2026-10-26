@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
-import { sanitizeVisitForClient } from '@/lib/personSanitizer';
+import { sanitizeVisitsWithDbFlags } from '@/lib/personSanitizer';
 
 export async function GET(request: NextRequest) {
   try {
@@ -108,6 +108,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    const [sanitizedRecentVisits, sanitizedActiveVisitors] = await Promise.all([
+      sanitizeVisitsWithDbFlags(recentVisits),
+      sanitizeVisitsWithDbFlags(activeVisitors),
+    ]);
+
     return NextResponse.json({
       success: true,
       stats: {
@@ -123,8 +128,8 @@ export async function GET(request: NextRequest) {
         deliveriesToday: categoryBreakdown.DELIVERY,
         visitorsToday: categoryBreakdown.VISITOR,
         categoryBreakdown,
-        recentVisits: recentVisits.map((v) => sanitizeVisitForClient(v)),
-        activeVisitors: activeVisitors.map((v) => sanitizeVisitForClient(v)),
+        recentVisits: sanitizedRecentVisits,
+        activeVisitors: sanitizedActiveVisitors,
       },
     });
   } catch (error: any) {

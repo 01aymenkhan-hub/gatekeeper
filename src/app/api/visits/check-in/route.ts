@@ -5,7 +5,7 @@ import { logAudit } from '@/lib/audit';
 import { generatePassCode } from '@/lib/qrUtils';
 import {
   validateDocumentImageDataUrl,
-  sanitizeVisitForClient,
+  sanitizeVisitsWithDbFlags,
   sanitizePersonForClient,
 } from '@/lib/personSanitizer';
 
@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       company,
       hostName,
       department,
+      departmentId,
       purpose,
       visitorCardNo,
       vehicleNo,
@@ -69,7 +70,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Host person name is required' }, { status: 400 });
     }
 
-    if (!department || !department.trim()) {
+    // Resolve Department (supports both departmentId and department name)
+    let resolvedDepartmentId: string | null =
+      typeof departmentId === 'string' && departmentId.trim() ? departmentId.trim() : null;
+    let resolvedDepartmentName: string =
+      typeof department === 'string' ? department.trim() : '';
+
+    if (resolvedDepartmentId) {
+      try {
+        const deptRows = await prisma.$queryRaw<
+          Array<{ id: string; name: string; active: boolean }>
+        >`
+          SELECT "id", "name", "active"
+          FROM "departments"
+          WHERE "id" = ${resolvedDepartmentId}
+          LIMIT 1
+        `;
+        if (deptRows.length > 0) {
+          resolvedDepartmentId = deptRows[0].id;
+          resolvedDepartmentName = deptRows[0].name;
+        } else {
+          resolvedDepartmentId = null;
+        }
+      } catch {
+        resolvedDepartmentId = null;
+      }
+    } else if (resolvedDepartmentName) {
+      try {
+        const normalizedDept = resolvedDepartmentName.toLowerCase().replace(/\s+/g, ' ');
+        const deptRows = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
+          SELECT "id", "name"
+          FROM "departments"
+          WHERE "normalizedName" = ${normalizedDept}
+          LIMIT 1
+        `;
+        if (deptRows.length > 0) {
+          resolvedDepartmentId = deptRows[0].id;
+          resolvedDepartmentName = deptRows[0].name;
+        }
+      } catch {
+        // Non-fatal fallback: keep resolvedDepartmentName
+      }
+    }
+
+    if (!resolvedDepartmentName) {
       return NextResponse.json({ error: 'Department is required' }, { status: 400 });
     }
 
@@ -84,8 +128,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Phone number validation: 11 digits starting with 03
-    if (phoneNumber && !/^03\d{9}$/.test(phoneNumber.trim())) {
+    // Phone number is optional; if provided (non-empty), validate 11 digits starting with 03
+    const cleanPhone =
+      typeof phoneNumber === 'string' && phoneNumber.trim().length > 0
+        ? phoneNumber.trim()
+        : null;
+
+    if (cleanPhone && !/^03\d{9}$/.test(cleanPhone)) {
       return NextResponse.json(
         { error: 'Phone number must be an 11-digit Pakistani mobile number starting with 03 (e.g. 03001234567)' },
         { status: 400 }
@@ -102,7 +151,6 @@ export async function POST(request: NextRequest) {
       if (defaultGate) {
         resolvedGateId = defaultGate.id;
       } else {
-        // Create a default gate if none exists
         const newGate = await prisma.gate.create({
           data: {
             name: 'Main Gate - Entry & Exit',
@@ -116,17 +164,14 @@ export async function POST(request: NextRequest) {
 
     const cleanCnic = cnicNumber ? cnicNumber.trim() : null;
     const cleanDls = dlsNumber ? dlsNumber.trim() : null;
-    const cleanPhone = phoneNumber ? phoneNumber.trim() : null;
 
     // Concurrency-safe transaction: acquire advisory lock on normalized card key,
     // verify card is not assigned to any active visitor, verify person is not blacklisted or already inside,
     // and atomically create the visit record.
     const { visit, person } = await prisma.$transaction(async (tx) => {
-      // Acquire transaction-level PostgreSQL advisory lock for this specific physical card key
       const lockNamespaceKey = `gk_card_${cardComparisonKey}`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockNamespaceKey}))`;
 
-      // Check if any currently active visitor holds this physical card
       const activeVisitsWithCards = await tx.visit.findMany({
         where: {
           status: { in: ['CHECKED_IN', 'OVERSTAY'] },
@@ -145,6 +190,7 @@ export async function POST(request: NextRequest) {
       );
 
       if (duplicateCardVisit) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const conflictErr: any = new Error(
           'This card is already assigned. Please choose another available card.'
         );
@@ -153,7 +199,6 @@ export async function POST(request: NextRequest) {
         throw conflictErr;
       }
 
-      // Check if person exists by CNIC, DLS, or Phone
       let existingPerson = null;
 
       if (cleanCnic) {
@@ -175,6 +220,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (existingPerson && existingPerson.isBlacklisted) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const blacklistErr: any = new Error(
           `ACCESS DENIED: This person is blacklisted! Reason: ${existingPerson.blacklistReason || 'Security alert'}`
         );
@@ -184,7 +230,6 @@ export async function POST(request: NextRequest) {
         throw blacklistErr;
       }
 
-      // Check if person is currently already checked in (active visit)
       if (existingPerson) {
         const activeVisit = await tx.visit.findFirst({
           where: {
@@ -195,6 +240,7 @@ export async function POST(request: NextRequest) {
         });
 
         if (activeVisit) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const alreadyInsideErr: any = new Error(
             `Warning: This person is already checked in (Visit #${activeVisit.visitNumber}). Please check them out before new entry.`
           );
@@ -205,12 +251,12 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Upsert person
       const personData = {
         fullName: fullName.trim(),
         fatherHusbandName: fatherHusbandName?.trim() || null,
         cnicNumber: cleanCnic,
         dlsNumber: cleanDls,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         category: category as any,
         gender: gender?.trim() || null,
         dateOfBirth: dateOfBirth?.trim() || null,
@@ -220,7 +266,7 @@ export async function POST(request: NextRequest) {
         identification: identification?.trim() || null,
         presentAddress: presentAddress?.trim() || null,
         permanentAddress: permanentAddress?.trim() || null,
-        phoneNumber: cleanPhone,
+        phoneNumber: cleanPhone || existingPerson?.phoneNumber || null,
         photoUrl: photoUrl || existingPerson?.photoUrl || null,
         company: company?.trim() || null,
         belongings: belongings?.trim() || null,
@@ -235,7 +281,6 @@ export async function POST(request: NextRequest) {
             data: personData,
           });
 
-      // Generate Visit Number: VIS-YYYYMMDD-XXXX
       const today = new Date();
       const datePrefix = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
       const todayVisitsCount = await tx.visit.count({
@@ -254,7 +299,7 @@ export async function POST(request: NextRequest) {
           passCode,
           personId: savedPerson.id,
           hostName: hostName.trim(),
-          department: department.trim(),
+          department: resolvedDepartmentName,
           purpose: purpose?.trim() || null,
           visitorCardNo: formattedCardNo,
           vehicleNo: vehicleNo?.trim() || null,
@@ -271,36 +316,49 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      if (resolvedDepartmentId) {
+        await tx.$executeRaw`
+          UPDATE "visits"
+          SET "departmentId" = ${resolvedDepartmentId}
+          WHERE "id" = ${createdVisit.id}
+        `;
+      }
+
       return { visit: createdVisit, person: savedPerson };
     });
 
-    // Save scanned CNIC / DLS document images separately so OCR/registration and image-saving outcomes remain distinguishable
+    // Save scanned CNIC / DLS document images using parameterized SQL so cached Prisma DMMF never rejects the columns
     let imageStorageStatus: 'saved' | 'failed' | 'none' = 'none';
     let imageStorageError: string | null = null;
     const hasIncomingCnicImage = typeof cnicImageData === 'string' && cnicImageData.trim().length > 0;
     const hasIncomingDlsImage = typeof dlsImageData === 'string' && dlsImageData.trim().length > 0;
 
     if (hasIncomingCnicImage || hasIncomingDlsImage) {
-      const imageUpdateData: Record<string, string> = {};
+      let validCnicData: string | null = null;
+      let validCnicMime: string | null = null;
+      let validDlsData: string | null = null;
+      let validDlsMime: string | null = null;
       const validationErrors: string[] = [];
 
       if (hasIncomingCnicImage) {
         try {
           const cnicValidation = validateDocumentImageDataUrl(cnicImageData);
-          imageUpdateData.cnicImageData = cnicValidation.normalizedDataUrl;
-          imageUpdateData.cnicImageMime = cnicValidation.mime;
-        } catch (err: any) {
-          validationErrors.push(`CNIC image: ${err?.message || 'Invalid image'}`);
+          validCnicData = cnicValidation.normalizedDataUrl;
+          validCnicMime = cnicValidation.mime;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Invalid image';
+          validationErrors.push(`CNIC image: ${msg}`);
         }
       }
 
       if (hasIncomingDlsImage) {
         try {
           const dlsValidation = validateDocumentImageDataUrl(dlsImageData);
-          imageUpdateData.dlsImageData = dlsValidation.normalizedDataUrl;
-          imageUpdateData.dlsImageMime = dlsValidation.mime;
-        } catch (err: any) {
-          validationErrors.push(`Driving Licence image: ${err?.message || 'Invalid image'}`);
+          validDlsData = dlsValidation.normalizedDataUrl;
+          validDlsMime = dlsValidation.mime;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Invalid image';
+          validationErrors.push(`Driving Licence image: ${msg}`);
         }
       }
 
@@ -309,18 +367,42 @@ export async function POST(request: NextRequest) {
         imageStorageError = validationErrors.join('; ');
       }
 
-      if (Object.keys(imageUpdateData).length > 0) {
+      if (validCnicData || validDlsData) {
         try {
-          const updatedPersonWithImages = await prisma.person.update({
-            where: { id: person.id },
-            data: imageUpdateData,
-          });
-          visit.person = updatedPersonWithImages;
+          if (validCnicData && validDlsData) {
+            await prisma.$executeRaw`
+              UPDATE "persons"
+              SET "cnicImageData" = ${validCnicData},
+                  "cnicImageMime" = ${validCnicMime},
+                  "dlsImageData" = ${validDlsData},
+                  "dlsImageMime" = ${validDlsMime},
+                  "updatedAt" = NOW()
+              WHERE "id" = ${person.id}
+            `;
+          } else if (validCnicData) {
+            await prisma.$executeRaw`
+              UPDATE "persons"
+              SET "cnicImageData" = ${validCnicData},
+                  "cnicImageMime" = ${validCnicMime},
+                  "updatedAt" = NOW()
+              WHERE "id" = ${person.id}
+            `;
+          } else if (validDlsData) {
+            await prisma.$executeRaw`
+              UPDATE "persons"
+              SET "dlsImageData" = ${validDlsData},
+                  "dlsImageMime" = ${validDlsMime},
+                  "updatedAt" = NOW()
+              WHERE "id" = ${person.id}
+            `;
+          }
+
           if (validationErrors.length === 0) {
             imageStorageStatus = 'saved';
           }
-        } catch (imgErr: any) {
-          console.error('Failed to store identity document image for person:', person.id, imgErr?.message);
+        } catch (imgErr: unknown) {
+          const msg = imgErr instanceof Error ? imgErr.message : 'Database update failed';
+          console.error('Failed to store identity document image for person:', person.id, msg);
           imageStorageStatus = 'failed';
           imageStorageError = 'Failed to save scanned ID card image to database.';
         }
@@ -337,37 +419,47 @@ export async function POST(request: NextRequest) {
         cnic: person.cnicNumber,
         host: visit.hostName,
         department: visit.department,
+        departmentId: resolvedDepartmentId,
         cardNo: visit.visitorCardNo,
         imageStorageStatus,
       },
       performedById: user.id,
     });
 
+    const [sanitizedVisit] = await sanitizeVisitsWithDbFlags([
+      {
+        ...visit,
+        departmentId: resolvedDepartmentId,
+      },
+    ]);
+
     return NextResponse.json({
       success: true,
       message: 'Visitor checked in successfully',
-      visit: sanitizeVisitForClient(visit),
+      visit: sanitizedVisit,
       imageStorageStatus,
       imageStorageError,
     });
-  } catch (error: any) {
-    if (error?.status) {
+  } catch (error: unknown) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const err = error as any;
+    if (err?.status) {
       return NextResponse.json(
         {
-          error: error.message,
-          code: error.code,
-          blacklisted: error.blacklisted,
-          person: error.person ? sanitizePersonForClient(error.person) : undefined,
-          activeVisitId: error.activeVisitId,
-          visitNumber: error.visitNumber,
+          error: err.message,
+          code: err.code,
+          blacklisted: err.blacklisted,
+          person: err.person ? sanitizePersonForClient(err.person) : undefined,
+          activeVisitId: err.activeVisitId,
+          visitNumber: err.visitNumber,
         },
-        { status: error.status }
+        { status: err.status }
       );
     }
 
     console.error('Check-in error:', error);
     return NextResponse.json(
-      { error: error?.message || 'Failed to complete check-in' },
+      { error: err?.message || 'Failed to complete check-in' },
       { status: 500 }
     );
   }

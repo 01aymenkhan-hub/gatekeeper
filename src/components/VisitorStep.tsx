@@ -105,8 +105,10 @@ export default function VisitorStep({
   // Validation rules:
   // 1. Photo must be present
   const isPhotoValid = Boolean(visitorData.photoPreview);
-  // 2. Phone must be Pakistani format: 11 digits, starts with 03
-  const isPhoneValid = /^03\d{9}$/.test(visitorData.phoneNumber.trim());
+  // 2. Phone is optional; if entered, must be Pakistani format: 11 digits, starts with 03
+  const trimmedPhone = visitorData.phoneNumber.trim();
+  const hasPhoneValue = trimmedPhone.length > 0;
+  const isPhoneValid = !hasPhoneValue || /^03\d{9}$/.test(trimmedPhone);
   // 3. Visitor Card No. must be non-empty and not currently assigned to an active visitor
   const effectiveCardAvailability = visitorData.visitorCardNo.trim()
     ? cardAvailability
@@ -887,15 +889,24 @@ export default function VisitorStep({
         </h2>
       </div>
 
-      {/* 1. Phone Number Section */}
+      {/* 1. Phone Number Section (Optional) */}
       <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
         <div className={`mb-2 ${isUr ? "text-right" : "text-left"}`}>
-          <label
-            htmlFor="visitorPhoneNumber"
-            className="block text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight"
+          <div
+            className={`flex items-center gap-2 flex-wrap ${
+              isUr ? "flex-row-reverse" : "flex-row"
+            }`}
           >
-            {t("phone_number_label", "Phone Number")} <span className="text-red-500">*</span>
-          </label>
+            <label
+              htmlFor="visitorPhoneNumber"
+              className="block text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight"
+            >
+              {t("phone_number_label", "Phone Number")}
+            </label>
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md uppercase tracking-wider">
+              {t("optional_badge", "Optional")}
+            </span>
+          </div>
           <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
             {t("phone_number_hint", "11-digit mobile number starting with 03 (e.g. 03001234567)")}
           </p>
@@ -927,16 +938,16 @@ export default function VisitorStep({
             onChange={handlePhoneChange}
             placeholder="03001234567"
             className={`block w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm sm:text-base font-mono font-bold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 transition-colors shadow-2xs ${
-              visitorData.phoneNumber.length > 0 && !isPhoneValid
+              hasPhoneValue && !isPhoneValid
                 ? "border-red-400 focus:border-red-500 focus:ring-red-500/20 bg-red-50/20"
-                : isPhoneValid
+                : hasPhoneValue && isPhoneValid
                 ? "border-emerald-500 focus:border-emerald-500 focus:ring-emerald-500/20"
                 : "border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-blue-500/20"
             }`}
           />
         </div>
 
-        {visitorData.phoneNumber.length > 0 && !isPhoneValid && (
+        {hasPhoneValue && !isPhoneValid && (
           <p
             className={`text-xs font-bold text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1.5 ${
               isUr ? "flex-row-reverse text-right" : "flex-row text-left"

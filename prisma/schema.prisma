@@ -128,6 +128,8 @@ model Visit {
   person         Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
   hostName       String
   department     String
+  departmentId   String?
+  departmentRef  Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   purpose        String?
   visitorCardNo  String?
   vehicleNo      String?
@@ -154,7 +156,23 @@ model Visit {
   @@index([passCode])
   @@index([hostName])
   @@index([department])
+  @@index([departmentId])
   @@map("visits")
+}
+
+model Department {
+  id             String   @id @default(cuid())
+  name           String
+  normalizedName String   @unique
+  hodName        String
+  whatsappNumber String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  visits         Visit[]
+
+  @@index([active])
+  @@map("departments")
 }
 
 model AuditLog {

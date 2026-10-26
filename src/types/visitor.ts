@@ -6,8 +6,10 @@ export type SubmissionStatus = "idle" | "submitting" | "success" | "error";
 export interface VisitInfoData {
   /** Person the visitor is here to meet */
   meetName: string;
-  /** Department of the person being visited */
+  /** Department of the person being visited (historical snapshot name) */
   department: string;
+  /** Database ID of the selected Department */
+  departmentId?: string;
 }
 
 export interface VisitorStepData {

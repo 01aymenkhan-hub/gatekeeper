@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   X,
   AlertTriangle,
   Camera,
   ArrowLeft,
   ArrowRight,
-  Volume2,
-  VolumeX,
 } from 'lucide-react';
 import VisitInfoStep from '../VisitInfoStep';
 import CnicScanner from '../CnicScanner';
@@ -30,9 +28,7 @@ import {
   playSelectSound,
   playContinueSound,
   playBackSound,
-  isOperatorSoundEnabled,
-  setOperatorSoundEnabled,
-  subscribeOperatorSoundPreference,
+  playRegistrationSuccessSound,
 } from '../../utils/interactionSound';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -41,6 +37,7 @@ import { IconPakistaniCnic, IconDrivingLicence } from '../icons/OperatorTaskIcon
 const EMPTY_VISIT_INFO: VisitInfoData = {
   meetName: '',
   department: '',
+  departmentId: '',
 };
 
 const EMPTY_CNIC_DATA: CnicData = {
@@ -119,23 +116,6 @@ export default function CheckInModal({
       setOperatorStep(1);
     }
   }
-
-  // Operator interaction sound preference state
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => isOperatorSoundEnabled());
-  useEffect(() => {
-    return subscribeOperatorSoundPreference((enabled) => {
-      setSoundEnabled(enabled);
-    });
-  }, []);
-
-  const handleToggleSound = () => {
-    const next = !soundEnabled;
-    setOperatorSoundEnabled(next);
-    setSoundEnabled(next);
-    if (next) {
-      playSelectSound();
-    }
-  };
 
   const [visitInfo, setVisitInfo] = useState<VisitInfoData>(EMPTY_VISIT_INFO);
   const [documentType, setDocumentType] = useState<DocumentType>('cnic');
@@ -356,6 +336,10 @@ export default function CheckInModal({
   const activeScanStatus = documentType === 'cnic' ? cnicScanStatus : dlsScanStatus;
 
   const handleFinalSubmit = async () => {
+    if (submissionStatus === 'submitting' || createdVisit) {
+      return;
+    }
+
     setSubmissionStatus('submitting');
     setSubmissionError(null);
 
@@ -399,12 +383,13 @@ export default function CheckInModal({
           (doc as unknown as Record<string, string | undefined>).presentAddress || undefined,
         permanentAddress:
           (doc as unknown as Record<string, string | undefined>).permanentAddress || undefined,
-        phoneNumber: visitorData.phoneNumber,
+        phoneNumber: visitorData.phoneNumber.trim() || undefined,
         photoUrl: visitorData.photoPreview,
         cnicImageData: cnicScannedImage || undefined,
         dlsImageData: dlsScannedImage || undefined,
         hostName: visitInfo.meetName,
         department: visitInfo.department,
+        departmentId: visitInfo.departmentId || undefined,
         visitorCardNo: visitorData.visitorCardNo,
         belongings:
           visitorData.hasBelongings && visitorData.belongings?.trim()
@@ -443,6 +428,7 @@ export default function CheckInModal({
 
       setCreatedVisit(data.visit);
       setSubmissionStatus('success');
+      playRegistrationSuccessSound();
       if (onSuccess) onSuccess();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Submission failed';
@@ -472,6 +458,8 @@ export default function CheckInModal({
         body: JSON.stringify({
           type: documentType,
           imageDataUrl: activeImage,
+          cnicImageData: documentType === 'cnic' ? activeImage : undefined,
+          dlsImageData: documentType === 'dls' ? activeImage : undefined,
         }),
       });
       const json = await res.json();
@@ -480,10 +468,15 @@ export default function CheckInModal({
       }
       setImageStorageStatus('saved');
       setImageStorageError(null);
-      if (json.person && createdVisit) {
+      if (createdVisit) {
+        const currentPerson = (createdVisit.person as Record<string, unknown> | undefined) || {};
         setCreatedVisit({
           ...createdVisit,
-          person: json.person,
+          person: {
+            ...currentPerson,
+            hasCnicImage: json.hasCnicImage ?? currentPerson.hasCnicImage,
+            hasDlsImage: json.hasDlsImage ?? currentPerson.hasDlsImage,
+          },
         });
       }
     } catch (err: unknown) {
@@ -597,26 +590,6 @@ export default function CheckInModal({
               </div>
 
               <div className="flex items-center gap-1.5">
-                {/* Operator Interaction Sound Toggle */}
-                <button
-                  type="button"
-                  onClick={handleToggleSound}
-                  className={`p-1.5 rounded-xl border transition-colors cursor-pointer ${
-                    soundEnabled
-                      ? 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400'
-                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                  }`}
-                  title={soundEnabled ? t('sound_on', 'Interaction Sounds: On') : t('sound_off', 'Interaction Sounds: Off')}
-                  aria-label={soundEnabled ? t('sound_on', 'Interaction Sounds: On') : t('sound_off', 'Interaction Sounds: Off')}
-                  aria-pressed={soundEnabled}
-                >
-                  {soundEnabled ? (
-                    <Volume2 className="w-4 h-4" />
-                  ) : (
-                    <VolumeX className="w-4 h-4" />
-                  )}
-                </button>
-
                 <button
                   onClick={() => {
                     handleResetAll();

@@ -2,44 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
-
-const ALLOWED_MIMES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
-const MAX_DECODED_BYTES = 2.5 * 1024 * 1024; // 2.5 MB max stored image size
-
-function parseValidatedDataUrl(raw: string): {
-  mime: string;
-  buffer: Buffer;
-  normalizedDataUrl: string;
-} {
-  const trimmed = raw.trim();
-  const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/.exec(trimmed);
-  if (!match) {
-    throw new Error('Invalid image format. Expected a base64-encoded image data URL.');
-  }
-
-  const mime = match[1].toLowerCase();
-  if (!ALLOWED_MIMES.has(mime)) {
-    throw new Error('Unsupported document image type. Allowed types: JPEG, PNG, WebP.');
-  }
-
-  const base64Clean = match[2].replace(/\s+/g, '');
-  const buffer = Buffer.from(base64Clean, 'base64');
-
-  if (!buffer || buffer.byteLength === 0) {
-    throw new Error('Empty document image payload.');
-  }
-
-  if (buffer.byteLength > MAX_DECODED_BYTES) {
-    throw new Error('Document image exceeds the maximum allowed size (2.5 MB).');
-  }
-
-  const normalizedMime = mime === 'image/jpg' ? 'image/jpeg' : mime;
-  return {
-    mime: normalizedMime,
-    buffer,
-    normalizedDataUrl: `data:${normalizedMime};base64,${base64Clean}`,
-  };
-}
+import { validateDocumentImageDataUrl, getPersonImageFlagsMap } from '@/lib/personSanitizer';
 
 export async function GET(
   request: NextRequest,
@@ -64,17 +27,27 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid document type' }, { status: 400 });
     }
 
-    const person = await prisma.person.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        cnicImageData: true,
-        cnicImageMime: true,
-        dlsImageData: true,
-        dlsImageMime: true,
-      },
-    });
+    const rows = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        cnicImageData: string | null;
+        cnicImageMime: string | null;
+        dlsImageData: string | null;
+        dlsImageMime: string | null;
+      }>
+    >`
+      SELECT
+        "id",
+        "cnicImageData",
+        "cnicImageMime",
+        "dlsImageData",
+        "dlsImageMime"
+      FROM "persons"
+      WHERE "id" = ${id}
+      LIMIT 1
+    `;
 
+    const person = rows[0];
     if (!person) {
       return NextResponse.json({ error: 'Person not found' }, { status: 404 });
     }
@@ -86,7 +59,7 @@ export async function GET(
       return NextResponse.json({ error: 'Document image not available' }, { status: 404 });
     }
 
-    const parsed = parseValidatedDataUrl(rawImage);
+    const parsed = validateDocumentImageDataUrl(rawImage);
     const contentType = storedMime || parsed.mime || 'image/jpeg';
 
     return new NextResponse(new Uint8Array(parsed.buffer), {
@@ -97,7 +70,8 @@ export async function GET(
         'X-Content-Type-Options': 'nosniff',
       },
     });
-  } catch {
+  } catch (err) {
+    console.error('Error loading identity document image:', err);
     return NextResponse.json(
       { error: 'Unable to load identity document image' },
       { status: 500 }
@@ -121,9 +95,21 @@ export async function POST(
 
     const { id } = await context.params;
     const body = await request.json();
-    const { cnicImageData, dlsImageData } = body;
 
-    if (!cnicImageData && !dlsImageData) {
+    // Support both { cnicImageData, dlsImageData } and { type: 'cnic' | 'dls', imageDataUrl }
+    let incomingCnic: string | undefined = body.cnicImageData;
+    let incomingDls: string | undefined = body.dlsImageData;
+
+    if (typeof body.imageDataUrl === 'string' && body.imageDataUrl.trim()) {
+      const normalizedType = String(body.type || 'cnic').toLowerCase();
+      if (normalizedType === 'dls') {
+        incomingDls = body.imageDataUrl;
+      } else {
+        incomingCnic = body.imageDataUrl;
+      }
+    }
+
+    if (!incomingCnic && !incomingDls) {
       return NextResponse.json(
         { error: 'At least one identity document image is required' },
         { status: 400 }
@@ -139,33 +125,53 @@ export async function POST(
       return NextResponse.json({ error: 'Person not found' }, { status: 404 });
     }
 
-    const updateData: {
-      cnicImageData?: string;
-      cnicImageMime?: string;
-      dlsImageData?: string;
-      dlsImageMime?: string;
-    } = {};
-
+    let validCnicData: string | null = null;
+    let validCnicMime: string | null = null;
+    let validDlsData: string | null = null;
+    let validDlsMime: string | null = null;
     const updatedTypes: string[] = [];
 
-    if (typeof cnicImageData === 'string' && cnicImageData.trim()) {
-      const parsedCnic = parseValidatedDataUrl(cnicImageData);
-      updateData.cnicImageData = parsedCnic.normalizedDataUrl;
-      updateData.cnicImageMime = parsedCnic.mime;
+    if (typeof incomingCnic === 'string' && incomingCnic.trim()) {
+      const parsedCnic = validateDocumentImageDataUrl(incomingCnic);
+      validCnicData = parsedCnic.normalizedDataUrl;
+      validCnicMime = parsedCnic.mime;
       updatedTypes.push('CNIC');
     }
 
-    if (typeof dlsImageData === 'string' && dlsImageData.trim()) {
-      const parsedDls = parseValidatedDataUrl(dlsImageData);
-      updateData.dlsImageData = parsedDls.normalizedDataUrl;
-      updateData.dlsImageMime = parsedDls.mime;
+    if (typeof incomingDls === 'string' && incomingDls.trim()) {
+      const parsedDls = validateDocumentImageDataUrl(incomingDls);
+      validDlsData = parsedDls.normalizedDataUrl;
+      validDlsMime = parsedDls.mime;
       updatedTypes.push('DLS');
     }
 
-    await prisma.person.update({
-      where: { id },
-      data: updateData,
-    });
+    if (validCnicData && validDlsData) {
+      await prisma.$executeRaw`
+        UPDATE "persons"
+        SET "cnicImageData" = ${validCnicData},
+            "cnicImageMime" = ${validCnicMime},
+            "dlsImageData" = ${validDlsData},
+            "dlsImageMime" = ${validDlsMime},
+            "updatedAt" = NOW()
+        WHERE "id" = ${id}
+      `;
+    } else if (validCnicData) {
+      await prisma.$executeRaw`
+        UPDATE "persons"
+        SET "cnicImageData" = ${validCnicData},
+            "cnicImageMime" = ${validCnicMime},
+            "updatedAt" = NOW()
+        WHERE "id" = ${id}
+      `;
+    } else if (validDlsData) {
+      await prisma.$executeRaw`
+        UPDATE "persons"
+        SET "dlsImageData" = ${validDlsData},
+            "dlsImageMime" = ${validDlsMime},
+            "updatedAt" = NOW()
+        WHERE "id" = ${id}
+      `;
+    }
 
     await logAudit({
       action: 'SAVE_DOCUMENT_IMAGE',
@@ -178,10 +184,16 @@ export async function POST(
       performedById: user.id,
     });
 
+    const flagsMap = await getPersonImageFlagsMap([id]);
+    const flags = flagsMap.get(id) || {
+      hasCnicImage: Boolean(validCnicData),
+      hasDlsImage: Boolean(validDlsData),
+    };
+
     return NextResponse.json({
       success: true,
-      hasCnicImage: Boolean(updateData.cnicImageData),
-      hasDlsImage: Boolean(updateData.dlsImageData),
+      hasCnicImage: flags.hasCnicImage,
+      hasDlsImage: flags.hasDlsImage,
     });
   } catch (err: unknown) {
     const msg =

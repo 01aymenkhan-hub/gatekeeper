@@ -34,6 +34,7 @@ import CheckStatusModal from '@/components/modals/CheckStatusModal';
 import VisitorBadgeModal from '@/components/modals/VisitorBadgeModal';
 import CategoryRecordsModal, { CategoryModalConfig } from '@/components/modals/CategoryRecordsModal';
 import GatekeeperLoader from '@/components/ui/GatekeeperLoader';
+import { playSelectSound } from '@/utils/interactionSound';
 
 export default function DashboardPage() {
   const { user, currentGate } = useAuth();
@@ -112,6 +113,9 @@ export default function DashboardPage() {
   }, [fetchStats]);
 
   const openCheckIn = (category: string = 'VISITOR') => {
+    if (!isAdmin) {
+      playSelectSound();
+    }
     setCheckInCategory(category);
     setIsCheckInOpen(true);
   };
@@ -607,10 +611,10 @@ export default function DashboardPage() {
               </div>
             </button>
 
-            {/* 4. Add Vendor */}
+            {/* 4. Special Guest */}
             <button
               type="button"
-              onClick={() => openCheckIn('VENDOR')}
+              onClick={() => openCheckIn('SPECIAL_GUEST')}
               className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 via-white to-purple-500/5 dark:from-purple-950/40 dark:via-slate-900 dark:to-purple-950/20 border-2 border-purple-500/30 hover:border-purple-500 dark:border-purple-800 dark:hover:border-purple-500 shadow-sm hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
             >
               <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-500/30 shrink-0">

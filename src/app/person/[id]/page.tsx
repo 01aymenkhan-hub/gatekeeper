@@ -351,12 +351,12 @@ export default function PersonDetailPage({
           </div>
         </div>
 
-        {/* Identity Document Images Section */}
+        {/* Scanned ID Card Images Section */}
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-xs space-y-4">
           <div className="flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <h2 className="text-sm font-bold text-slate-900 dark:text-white">
-              {t('identity_documents_heading', 'Identity Document Images')}
+              {t('identity_documents_title', 'Scanned ID Card Images')}
             </h2>
           </div>
           <IdentityDocumentImagesCard person={person} />

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { normalizeSearchValue, getCnicHyphenatedVariants } from '@/lib/searchUtils';
-import { sanitizeVisitForClient } from '@/lib/personSanitizer';
+import { sanitizeVisitsWithDbFlags } from '@/lib/personSanitizer';
 
 export async function GET(request: NextRequest) {
   try {
@@ -104,9 +104,11 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    const sanitizedVisits = await sanitizeVisitsWithDbFlags(visits);
+
     return NextResponse.json({
       success: true,
-      visits: visits.map((v) => sanitizeVisitForClient(v)),
+      visits: sanitizedVisits,
       pagination: {
         page,
         limit,
