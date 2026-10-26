@@ -76,22 +76,40 @@ export async function POST(request: NextRequest) {
       resolvedExitGateId = targetVisit.entryGateId;
     }
 
-    const updatedVisit = await prisma.visit.update({
-      where: { id: targetVisit.id },
-      data: {
-        status: 'CHECKED_OUT',
-        checkOutTime: new Date(),
-        exitGateId: resolvedExitGateId,
-        checkedOutById: user.id,
-        notes: notes ? (targetVisit.notes ? `${targetVisit.notes}\nCheckout: ${notes}` : `Checkout: ${notes}`) : targetVisit.notes,
-      },
-      include: {
-        person: true,
-        entryGate: true,
-        exitGate: true,
-        checkedInBy: { select: { id: true, name: true } },
-        checkedOutBy: { select: { id: true, name: true } },
-      },
+    const updatedVisit = await prisma.$transaction(async (tx) => {
+      const freshVisit = await tx.visit.findUnique({
+        where: { id: targetVisit.id },
+      });
+
+      if (!freshVisit || freshVisit.status === 'CHECKED_OUT') {
+        const alreadyOutErr: any = new Error(
+          `This visit was already checked out${freshVisit?.checkOutTime ? ` at ${new Date(freshVisit.checkOutTime).toLocaleString()}` : ''}`
+        );
+        alreadyOutErr.status = 400;
+        throw alreadyOutErr;
+      }
+
+      return tx.visit.update({
+        where: { id: targetVisit.id },
+        data: {
+          status: 'CHECKED_OUT',
+          checkOutTime: new Date(),
+          exitGateId: resolvedExitGateId,
+          checkedOutById: user.id,
+          notes: notes
+            ? targetVisit.notes
+              ? `${targetVisit.notes}\nCheckout: ${notes}`
+              : `Checkout: ${notes}`
+            : targetVisit.notes,
+        },
+        include: {
+          person: true,
+          entryGate: true,
+          exitGate: true,
+          checkedInBy: { select: { id: true, name: true } },
+          checkedOutBy: { select: { id: true, name: true } },
+        },
+      });
     });
 
     await logAudit({
@@ -102,6 +120,7 @@ export async function POST(request: NextRequest) {
         visitNumber: updatedVisit.visitNumber,
         personName: updatedVisit.person.fullName,
         cnic: updatedVisit.person.cnicNumber,
+        cardNo: updatedVisit.visitorCardNo,
         durationMinutes: Math.round(
           (new Date(updatedVisit.checkOutTime!).getTime() - new Date(updatedVisit.checkInTime).getTime()) / 60000
         ),
@@ -115,6 +134,9 @@ export async function POST(request: NextRequest) {
       visit: updatedVisit,
     });
   } catch (error: any) {
+    if (error?.status) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Check-out error:', error);
     return NextResponse.json(
       { error: error?.message || 'Failed to complete check out' },

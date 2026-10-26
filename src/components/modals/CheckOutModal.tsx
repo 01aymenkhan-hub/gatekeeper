@@ -16,8 +16,10 @@ import {
   ShieldCheck,
   Building,
   RotateCcw,
+  CreditCard,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import QrScanner from '@/components/scanner/QrScanner';
 
 interface CheckOutModalProps {
@@ -33,7 +35,9 @@ export default function CheckOutModal({
   onSuccess,
   initialVisit,
 }: CheckOutModalProps) {
-  const { currentGate } = useAuth();
+  const { user, currentGate } = useAuth();
+  const { t } = useLanguage();
+  const isAdmin = user?.role === 'ADMIN';
   const [checkoutMode, setCheckoutMode] = useState<'search' | 'qr'>('search');
   const [identifier, setIdentifier] = useState('');
   const [searching, setSearching] = useState(false);
@@ -528,6 +532,20 @@ export default function CheckOutModal({
                     </span>
                   </div>
                 </div>
+
+                {!isAdmin && activeVisit.visitorCardNo && (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                      <CreditCard className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span className="text-xs sm:text-sm font-extrabold">
+                        {t('collect_physical_card_label')}
+                      </span>
+                    </div>
+                    <span className="text-sm sm:text-base font-mono font-extrabold px-3 py-1 rounded-lg bg-white dark:bg-slate-900 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700 shadow-2xs shrink-0">
+                      {activeVisit.visitorCardNo}
+                    </span>
+                  </div>
+                )}
 
                 <div className="pt-2 flex flex-col gap-2">
                   <button

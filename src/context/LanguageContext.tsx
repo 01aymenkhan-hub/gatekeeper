@@ -161,6 +161,188 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   page: { en: 'Page', ur: 'صفحہ' },
   previous: { en: 'Previous', ur: 'پچھلا' },
   next: { en: 'Next', ur: 'اگلا' },
+
+  // Operator Registration & OCR Workflow (Step 1: Categories & Visit Info)
+  new_checkin_title: { en: 'New Check-In Registration', ur: 'نئی انٹری رجسٹریشن' },
+  step_1_badge: { en: 'Step 1 of 3 • Visit Info', ur: 'مرحلہ 1 از 3 • ملاقات کی معلومات' },
+  step_2_badge: { en: 'Step 2 of 3 • ID Scan', ur: 'مرحلہ 2 از 3 • کارڈ اسکین' },
+  step_3_badge: { en: 'Step 3 of 3 • Photo & Card', ur: 'مرحلہ 3 از 3 • تصویر اور کارڈ نمبر' },
+  select_category_title: { en: 'Select Visitor Category', ur: 'وزیٹر کی قسم منتخب کریں' },
+  select_category_subtitle: {
+    en: 'Tap one card below to choose who is entering the facility',
+    ur: 'نیچے دیے گئے کارڈز میں سے آنے والے کی قسم منتخب کریں',
+  },
+  cat_visitor: { en: 'Visitor', ur: 'عام وزیٹر' },
+  cat_vendor: { en: 'Vendor', ur: 'وینڈر / سپلائر' },
+  cat_interview: { en: 'Interview', ur: 'انٹرویو امیدوار' },
+  cat_special_guest: { en: 'Special Guest', ur: 'خاص مہمان' },
+  cat_contractor: { en: 'Contractor', ur: 'ٹھیکیدار / ورکر' },
+  cat_delivery: { en: 'Delivery', ur: 'ڈلیوری / کوریئر' },
+  visit_info_title: { en: 'Visit Information', ur: 'ملاقات کی تفصیل' },
+  visit_info_subtitle: {
+    en: 'Enter the name of the host and department the visitor is meeting',
+    ur: 'جس شخص سے ملاقات ہے اس کا نام اور شعبہ لکھیں',
+  },
+  meet_name_label: { en: 'Visitor is here to meet', ur: 'کس سے ملنا ہے (میزبان کا نام)' },
+  meet_name_placeholder: { en: 'e.g. Muhammad Asif (Manager)', ur: 'مثلاً محمد آصف (منیجر)' },
+  department_label: { en: 'Department', ur: 'شعبہ (ڈیپارٹمنٹ)' },
+  department_placeholder: { en: 'e.g. Accounts, Production, IT', ur: 'مثلاً اکاؤنٹس، پروڈکشن، آئی ٹی' },
+  continue_to_doc_scan: {
+    en: 'Continue to Document Verification',
+    ur: 'اگلا مرحلہ: شناختی کارڈ / لائسنس اسکین کریں',
+  },
+  fill_required_fields_hint: {
+    en: 'Please fill in both required fields to continue',
+    ur: 'آگے بڑھنے کے لیے دونوں خانے پُر کریں',
+  },
+
+  // Step 2: CNIC & Driving Licence Visual Scanning + OCR Results
+  choose_scan_method_title: {
+    en: 'Scan Identity Document',
+    ur: 'شناختی کارڈ یا ڈرائیونگ لائسنس اسکین کریں',
+  },
+  choose_scan_method_subtitle: {
+    en: 'Tap a card below to open the camera and scan the visitor ID',
+    ur: 'کیمرہ کھولنے اور کارڈ اسکین کرنے کے لیے نیچے بٹن دبائیں',
+  },
+  scan_cnic_title: { en: 'Scan CNIC', ur: 'شناختی کارڈ اسکین کریں' },
+  scan_cnic_subtitle: {
+    en: 'Pakistani Smart Card or NADRA CNIC',
+    ur: 'پاکستانی شناختی کارڈ کی تصویر لیں',
+  },
+  scan_dls_title: { en: 'Scan Driving Licence', ur: 'ڈرائیونگ لائسنس اسکین کریں' },
+  scan_dls_subtitle: {
+    en: 'Driving Licence Card',
+    ur: 'ڈرائیونگ لائسنس کی تصویر لیں',
+  },
+  tap_to_scan_badge: { en: 'Tap to Scan with Camera', ur: 'کیمرہ کھولنے کے لیے دبائیں' },
+  ocr_scanning_title: { en: 'Reading Card Details...', ur: 'کارڈ پڑھا جا رہا ہے...' },
+  ocr_scanning_subtitle: {
+    en: 'Please wait a moment while OCR extracts the information',
+    ur: 'براہ کرم انتظار کریں، کارڈ سے معلومات نکالی جا رہی ہیں',
+  },
+  scan_failed_title: {
+    en: 'Scan failed. Please scan again.',
+    ur: 'اسکین نہیں ہوا، دوبارہ اسکین کریں۔',
+  },
+  scan_failed_subtitle: {
+    en: 'Hold the card steady in good light inside the frame and try again.',
+    ur: 'کارڈ کو روشنی میں سیدھا رکھ کر دوبارہ تصویر لیں۔',
+  },
+  scan_again_btn: { en: 'Scan Again', ur: 'دوبارہ اسکین کریں' },
+  scan_success_badge: { en: 'Scan Complete ✓', ur: 'اسکین مکمل ہو گیا ✓' },
+  rescan_card_btn: { en: 'Rescan Card', ur: 'دوبارہ اسکین کریں' },
+  extracted_cnic_title: { en: 'Extracted CNIC Information', ur: 'شناختی کارڈ کی معلومات' },
+  extracted_cnic_subtitle: {
+    en: 'Verify or edit the extracted details below before continuing',
+    ur: 'نیچے دی گئی معلومات چیک کریں اور آگے بڑھیں',
+  },
+  extracted_dls_title: { en: 'Driving Licence Information', ur: 'ڈرائیونگ لائسنس کی معلومات' },
+  extracted_dls_subtitle: {
+    en: 'Verify or edit the extracted details below before continuing',
+    ur: 'نیچے دی گئی معلومات چیک کریں اور آگے بڑھیں',
+  },
+  field_full_name: { en: 'Full Name', ur: 'پورا نام' },
+  field_father_husband_name: { en: 'Father / Husband Name', ur: 'والد / شوہر کا نام' },
+  field_cnic_number: { en: 'CNIC Number', ur: 'شناختی کارڈ نمبر' },
+  field_gender: { en: 'Gender', ur: 'جنس' },
+  field_gender_select: { en: 'Select Gender', ur: 'جنس منتخب کریں' },
+  field_gender_male: { en: 'Male', ur: 'مرد (Male)' },
+  field_gender_female: { en: 'Female', ur: 'خاتون (Female)' },
+  field_dob: { en: 'Date of Birth', ur: 'تاریخ پیدائش' },
+  field_issue_date: { en: 'Date of Issue', ur: 'تاریخ اجراء' },
+  field_expiry_date: { en: 'Date of Expiry', ur: 'تاریخ تنسیخ (ایکسپائری)' },
+  field_identification: { en: 'Identification Mark', ur: 'شناختی علامت' },
+  field_license_no: { en: 'Licence Number', ur: 'لائسنس نمبر' },
+  field_license_category: { en: 'Vehicle Category', ur: 'گاڑی کی قسم' },
+  field_valid_upto: { en: 'Valid Upto', ur: 'میعاد ختم ہونے کی تاریخ' },
+  field_licensing_authority: { en: 'Licensing Authority', ur: 'جاری کرنے والا ادارہ' },
+  back_btn: { en: 'Back', ur: 'واپس' },
+  continue_to_visitor_details: {
+    en: 'Continue to Visitor Photo & Card',
+    ur: 'اگلا مرحلہ: تصویر اور کارڈ نمبر',
+  },
+
+  // Step 3: Visitor Photo Capture, Phone Number & Manual Visitor Card Number
+  host_summary_label: { en: 'Host / Meet To', ur: 'میزبان کا نام' },
+  dept_summary_label: { en: 'Department', ur: 'شعبہ' },
+  visitor_photo_section_title: { en: 'Visitor Photo', ur: 'وزیٹر کی تصویر' },
+  photo_required_badge: { en: 'Required', ur: 'ضروری ہے' },
+  photo_attached_badge: { en: 'Photo Attached ✓', ur: 'تصویر لگ گئی ✓' },
+  capture_visitor_photo: { en: 'Capture Visitor Photo', ur: 'وزیٹر کی تصویر لیں' },
+  capture_visitor_photo_hint: {
+    en: 'Tap below to open camera and take a clear photo of the visitor',
+    ur: 'کیمرہ کھولنے اور وزیٹر کی صاف تصویر لینے کے لیے یہاں دبائیں',
+  },
+  capture_photo_btn: { en: 'Capture Photo', ur: 'تصویر لیں' },
+  retake_photo_btn: { en: 'Retake Photo', ur: 'دوبارہ تصویر لیں' },
+  photo_confirmed_title: { en: 'Visitor Photo Captured', ur: 'وزیٹر کی تصویر محفوظ ہو گئی' },
+  photo_confirmed_hint: {
+    en: 'If the photo is blurry, tap Retake Photo below',
+    ur: 'اگر تصویر صاف نہیں ہے تو دوبارہ تصویر لیں کا بٹن دبائیں',
+  },
+  phone_number_label: { en: 'Phone Number', ur: 'موبائل فون نمبر' },
+  phone_number_hint: {
+    en: 'Enter 11-digit mobile number starting with 03 (e.g. 03001234567)',
+    ur: '03 سے شروع ہونے والا 11 ہندسوں کا موبائل نمبر لکھیں (مثلاً 03001234567)',
+  },
+  phone_invalid_error: {
+    en: 'Please enter a valid 11-digit mobile number starting with 03.',
+    ur: 'براہ کرم 03 سے شروع ہونے والا مکمل 11 ہندسوں کا نمبر درج کریں۔',
+  },
+  visitor_card_no_label: { en: 'Visitor Card Number', ur: 'وزیٹر کارڈ نمبر' },
+  visitor_card_no_hint: {
+    en: 'Enter the exact number printed on the physical card given to the visitor (e.g. VC-12)',
+    ur: 'وزیٹر کو دیے جانے والے کارڈ پر لکھا ہوا نمبر درج کریں (مثلاً VC-12)',
+  },
+  visitor_card_already_assigned: {
+    en: 'This card is already assigned. Please choose another available card.',
+    ur: 'یہ کارڈ پہلے سے استعمال میں ہے، دوسرا دستیاب کارڈ منتخب کریں۔',
+  },
+  visitor_card_available: {
+    en: 'Card is available ✓',
+    ur: 'یہ کارڈ دستیاب ہے ✓',
+  },
+  visitor_card_checking: {
+    en: 'Checking card availability...',
+    ur: 'کارڈ چیک کیا جا رہا ہے...',
+  },
+  visitor_card_confirmed_badge: {
+    en: 'Assigned Physical Card:',
+    ur: 'جاری کردہ کارڈ نمبر:',
+  },
+  belongings_title: { en: 'Carrying Items / Belongings', ur: 'ساتھ لایا گیا سامان' },
+  belongings_optional: { en: 'Optional', ur: 'اختیاری' },
+  belongings_hint: {
+    en: 'Turn on if the visitor has a laptop, bag, or tools',
+    ur: 'اگر وزیٹر کے پاس لیپ ٹاپ، بیگ یا اوزار ہیں تو آن کریں',
+  },
+  belongings_list_label: {
+    en: 'List Carried Items',
+    ur: 'سامان کی تفصیل لکھیں',
+  },
+  submission_failed_title: { en: 'Registration Failed', ur: 'انٹری محفوظ نہیں ہو سکی' },
+  submit_registration_btn: { en: 'Submit Registration', ur: 'انٹری مکمل کریں' },
+  submitting_btn: { en: 'Submitting...', ur: 'محفوظ ہو رہا ہے...' },
+  submitted_btn: { en: 'Submitted ✓', ur: 'مکمل ہو گیا ✓' },
+  try_again_btn: { en: 'Try Again', ur: 'دوبارہ کوشش کریں' },
+
+  // Step 4: Final Registration Success Screen & Badge / Checkout Card Notice
+  registration_successful_title: {
+    en: 'Registration Successful',
+    ur: 'وزیٹر انٹری مکمل ہو گئی',
+  },
+  registration_successful_subtitle: {
+    en: 'Visitor entry is registered. Hand over the physical card and print the badge.',
+    ur: 'وزیٹر کا اندراج ہو گیا ہے۔ کارڈ حوالے کریں اور پاس پرنٹ کریں۔',
+  },
+  view_card_btn: { en: 'View Card', ur: 'کارڈ دیکھیں' },
+  print_badge_btn: { en: 'Print Badge', ur: 'پاس پرنٹ کریں' },
+  register_next_visitor_btn: { en: '+ Register Next Visitor', ur: '+ اگلا وزیٹر درج کریں' },
+  collect_physical_card_label: {
+    en: 'Collect Physical Visitor Card:',
+    ur: 'وزیٹر سے یہ کارڈ واپس لیں:',
+  },
 };
 
 const LanguageContext = createContext<LanguageContextType>({

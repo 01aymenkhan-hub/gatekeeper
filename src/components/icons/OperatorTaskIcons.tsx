@@ -276,3 +276,156 @@ export function IconVisitorPass({ className = 'w-5 h-5', size, ...props }: IconP
     </svg>
   );
 }
+
+/**
+ * Recognizable Pakistani Smart CNIC / National Identity Card Icon
+ * Features ID card frame, header bar with crescent/star, smart IC chip, portrait box, and data lines.
+ */
+export function IconPakistaniCnic({ className = 'w-14 h-14', size, ...props }: IconProps) {
+  return (
+    <svg
+      width={size || 56}
+      height={size || 56}
+      viewBox="0 0 56 56"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...props}
+    >
+      {/* Outer Scan Brackets */}
+      <path
+        d="M4 16V11C4 8.79086 5.79086 7 8 7H13M43 7H48C50.2091 7 52 8.79086 52 11V16M52 40V45C52 47.2091 50.2091 49 48 49H43M13 49H8C5.79086 49 4 47.2091 4 45V40"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+      {/* CNIC Card Body */}
+      <rect
+        x="8"
+        y="12"
+        width="40"
+        height="32"
+        rx="4"
+        stroke="currentColor"
+        strokeWidth="2.8"
+      />
+      {/* Top Green Flag Header Strip */}
+      <path d="M9.5 18.5H46.5" stroke="currentColor" strokeWidth="2.2" />
+      {/* Smart Chip on Left */}
+      <rect
+        x="12.5"
+        y="22.5"
+        width="7.5"
+        height="6"
+        rx="1.2"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      {/* Data Lines in Middle */}
+      <path
+        d="M12.5 33H29M12.5 37.5H25"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M23 24H30M23 28H28"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        opacity="0.85"
+      />
+      {/* Citizen Portrait Frame on Right */}
+      <rect
+        x="33.5"
+        y="22"
+        width="10.5"
+        height="13.5"
+        rx="1.8"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <circle cx="38.75" cy="26.5" r="2.2" fill="currentColor" />
+      <path
+        d="M35.5 33.5C35.5 31.6 36.9 30.2 38.75 30.2C40.6 30.2 42 31.6 42 33.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Recognizable Driving Licence Visual Icon
+ * Features licence card frame, steering wheel / automobile emblem, driver portrait, and licence number strip.
+ */
+export function IconDrivingLicence({ className = 'w-14 h-14', size, ...props }: IconProps) {
+  return (
+    <svg
+      width={size || 56}
+      height={size || 56}
+      viewBox="0 0 56 56"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      {...props}
+    >
+      {/* Outer Scan Brackets */}
+      <path
+        d="M4 16V11C4 8.79086 5.79086 7 8 7H13M43 7H48C50.2091 7 52 8.79086 52 11V16M52 40V45C52 47.2091 50.2091 49 48 49H43M13 49H8C5.79086 49 4 47.2091 4 45V40"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        opacity="0.55"
+      />
+      {/* Licence Card Body */}
+      <rect
+        x="8"
+        y="12"
+        width="40"
+        height="32"
+        rx="4"
+        stroke="currentColor"
+        strokeWidth="2.8"
+      />
+      {/* Header Banner */}
+      <path d="M9.5 18.5H46.5" stroke="currentColor" strokeWidth="2.2" />
+      {/* Driver Portrait on Left */}
+      <rect
+        x="12"
+        y="22"
+        width="10.5"
+        height="13.5"
+        rx="1.8"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <circle cx="17.25" cy="26.5" r="2.2" fill="currentColor" />
+      <path
+        d="M14 33.5C14 31.6 15.4 30.2 17.25 30.2C19.1 30.2 20.5 31.6 20.5 33.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      {/* Steering Wheel Emblem on Right */}
+      <circle cx="37.5" cy="29.5" r="6.5" stroke="currentColor" strokeWidth="2.2" />
+      <circle cx="37.5" cy="29.5" r="2" fill="currentColor" />
+      <path
+        d="M31.5 28.5H43.5M37.5 31.5V35.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      {/* Licence Text Lines */}
+      <path
+        d="M25.5 23.5H31M25.5 27.5H29.5M12.5 39H28"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
