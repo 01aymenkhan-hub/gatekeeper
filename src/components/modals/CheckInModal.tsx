@@ -90,11 +90,23 @@ export default function CheckInModal({
   // Operator 6-step state (1: Category, 2: Visit Info, 3: Scan ID Card, 4: Review Scanned Details, 5: Capture Photo, 6: Registration Details)
   const [operatorStep, setOperatorStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
 
-  const [category, setCategory] = useState<string>(defaultCategory);
+  const [category, setCategory] = useState<string>(() =>
+    isAdmin ? defaultCategory || 'VISITOR' : ''
+  );
   const [prevDefaultCategory, setPrevDefaultCategory] = useState<string>(defaultCategory);
   if (defaultCategory !== prevDefaultCategory) {
     setPrevDefaultCategory(defaultCategory);
-    setCategory(defaultCategory || 'VISITOR');
+    if (isAdmin) {
+      setCategory(defaultCategory || 'VISITOR');
+    }
+  }
+  const [prevIsOpen, setPrevIsOpen] = useState<boolean>(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen && !isAdmin) {
+      setCategory('');
+      setOperatorStep(1);
+    }
   }
 
   const [visitInfo, setVisitInfo] = useState<VisitInfoData>(EMPTY_VISIT_INFO);
@@ -277,7 +289,7 @@ export default function CheckInModal({
             ? cnicFormData.cnicNumber || cnicFormData.cnic
             : undefined,
         dlsNumber: documentType === 'dls' ? dlsFormData.licenseNumber : undefined,
-        category,
+        category: category || 'VISITOR',
         gender: documentType === 'cnic' ? cnicFormData.gender : undefined,
         dateOfBirth:
           documentType === 'cnic'
@@ -340,6 +352,7 @@ export default function CheckInModal({
   const handleResetAll = () => {
     setCurrentStep(1);
     setOperatorStep(1);
+    setCategory(isAdmin ? defaultCategory || 'VISITOR' : '');
     setVisitInfo(EMPTY_VISIT_INFO);
     setCnicFormData(EMPTY_CNIC_DATA);
     setCnicScanStatus('idle');
@@ -374,8 +387,20 @@ export default function CheckInModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex items-center justify-center p-2.5 sm:p-6 bg-slate-950/75 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150">
-        <div className="w-full max-w-2xl my-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[94vh]">
+      <div
+        className={
+          isAdmin
+            ? 'fixed inset-0 z-40 flex items-center justify-center p-2.5 sm:p-6 bg-slate-950/75 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150'
+            : 'fixed inset-0 z-40 flex items-stretch sm:items-center justify-center p-1.5 sm:p-6 bg-slate-950/75 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-150'
+        }
+      >
+        <div
+          className={
+            isAdmin
+              ? 'w-full max-w-2xl my-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[94vh]'
+              : 'w-full max-w-2xl sm:my-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col min-h-[calc(100dvh-0.75rem)] max-h-[calc(100dvh-0.75rem)] sm:min-h-[560px] sm:max-h-[92vh]'
+          }
+        >
           {/* Header */}
           {isAdmin ? (
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 shrink-0">
@@ -432,7 +457,10 @@ export default function CheckInModal({
               </div>
 
               <button
-                onClick={onClose}
+                onClick={() => {
+                  handleResetAll();
+                  onClose();
+                }}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                 title={t('close', 'Close')}
               >
@@ -566,7 +594,7 @@ export default function CheckInModal({
             </div>
           ) : (
             /* ── OPERATOR 6-STEP MOBILE-FIRST REGISTRATION FLOW ── */
-            <div className="p-3.5 sm:p-5 overflow-y-auto flex-1 space-y-4">
+            <div className="p-4 sm:p-5 overflow-y-auto flex-1 flex flex-col">
               {/* STEP 1: SELECT VISITOR CATEGORY (Auto-advances to Step 2) */}
               {operatorStep === 1 && (
                 <VisitInfoStep
@@ -594,10 +622,10 @@ export default function CheckInModal({
 
               {/* STEP 3: SCAN ID CARD (Existing CNIC/DLS Scanning UI Preserved) */}
               {operatorStep === 3 && (
-                <div className="space-y-4">
+                <div className="flex-1 flex flex-col justify-between gap-4">
                   {/* Scanning in Progress State */}
                   {activeScanStatus === 'scanning' && (
-                    <div className="rounded-2xl border-2 border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/30 p-7 sm:p-9 flex flex-col items-center justify-center text-center space-y-3.5 animate-in fade-in duration-200">
+                    <div className="flex-1 rounded-2xl border-2 border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/30 p-7 sm:p-9 flex flex-col items-center justify-center text-center space-y-3.5 animate-in fade-in duration-200">
                       <div className="w-16 h-16 rounded-2xl bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-sm">
                         <Loader2 className="w-10 h-10 animate-spin" />
                       </div>
@@ -617,15 +645,15 @@ export default function CheckInModal({
 
                   {/* Scan Failed Prominent Error Card */}
                   {activeScanStatus === 'error' && (
-                    <div className="rounded-2xl border-2 border-red-300 dark:border-red-800 bg-red-50/90 dark:bg-red-950/40 p-5 sm:p-6 flex flex-col items-center justify-center text-center space-y-3 animate-in zoom-in-95 duration-200">
-                      <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400 flex items-center justify-center shadow-sm">
-                        <AlertTriangle className="w-8 h-8 stroke-[2.2]" />
+                    <div className="rounded-2xl border-2 border-red-300 dark:border-red-800 bg-red-50/90 dark:bg-red-950/40 p-4 sm:p-5 flex flex-col items-center justify-center text-center space-y-2.5 animate-in zoom-in-95 duration-200">
+                      <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400 flex items-center justify-center shadow-sm">
+                        <AlertTriangle className="w-7 h-7 stroke-[2.2]" />
                       </div>
                       <div className="space-y-1 max-w-md">
-                        <h3 className="text-base sm:text-lg font-extrabold text-red-700 dark:text-red-300">
+                        <h3 className="text-sm sm:text-base font-extrabold text-red-700 dark:text-red-300">
                           {t('scan_failed_title', 'Scan failed. Please scan again.')}
                         </h3>
-                        <p className="text-xs sm:text-sm font-medium text-red-600/90 dark:text-red-300/90">
+                        <p className="text-xs font-medium text-red-600/90 dark:text-red-300/90">
                           {t(
                             'scan_failed_subtitle',
                             'Hold the card steady in good light inside the frame and try again.'
@@ -635,7 +663,7 @@ export default function CheckInModal({
                       <button
                         type="button"
                         onClick={() => handleOperatorStartScan(documentType)}
-                        className="py-3 px-6 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white text-xs sm:text-sm font-extrabold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                        className="py-2.5 px-5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white text-xs sm:text-sm font-extrabold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                       >
                         <Camera className="w-4 h-4" />
                         <span>{t('scan_again_btn', 'Scan Again')}</span>
@@ -645,7 +673,7 @@ export default function CheckInModal({
 
                   {/* Two Large Visual Scanning Option Cards */}
                   {activeScanStatus !== 'scanning' && (
-                    <div className="space-y-3">
+                    <div className="flex-1 flex flex-col gap-3.5">
                       <div className={isUr ? 'text-right' : 'text-left'}>
                         <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
                           {t('scan_id_card_title', 'Scan ID Card')}
@@ -658,12 +686,12 @@ export default function CheckInModal({
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3.5 content-stretch">
                         {/* Option A: Scan CNIC (Green Primary Accent) */}
                         <button
                           type="button"
                           onClick={() => handleOperatorStartScan('cnic')}
-                          className="group relative flex flex-col items-center justify-center text-center p-5 sm:p-6 rounded-2xl border-2 border-emerald-500/80 dark:border-emerald-500/70 bg-emerald-50/70 hover:bg-emerald-50 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 transition-all duration-150 cursor-pointer active:scale-[0.98] shadow-sm hover:shadow-md min-h-[165px] sm:min-h-[195px]"
+                          className="group relative flex flex-col items-center justify-center text-center p-5 sm:p-6 rounded-2xl border-2 border-emerald-500/80 dark:border-emerald-500/70 bg-emerald-50/70 hover:bg-emerald-50 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50 transition-all duration-150 cursor-pointer active:scale-[0.98] shadow-sm hover:shadow-md min-h-[155px] sm:min-h-[195px]"
                         >
                           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mb-3 gk-pulse-emerald transition-transform group-hover:scale-105">
                             <IconPakistaniCnic className="w-12 h-12 sm:w-14 sm:h-14" />
@@ -681,7 +709,7 @@ export default function CheckInModal({
                         <button
                           type="button"
                           onClick={() => handleOperatorStartScan('dls')}
-                          className="group relative flex flex-col items-center justify-center text-center p-5 sm:p-6 rounded-2xl border-2 border-blue-500/80 dark:border-blue-500/70 bg-blue-50/70 hover:bg-blue-50 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 transition-all duration-150 cursor-pointer active:scale-[0.98] shadow-sm hover:shadow-md min-h-[165px] sm:min-h-[195px]"
+                          className="group relative flex flex-col items-center justify-center text-center p-5 sm:p-6 rounded-2xl border-2 border-blue-500/80 dark:border-blue-500/70 bg-blue-50/70 hover:bg-blue-50 dark:bg-blue-950/30 dark:hover:bg-blue-950/50 transition-all duration-150 cursor-pointer active:scale-[0.98] shadow-sm hover:shadow-md min-h-[155px] sm:min-h-[195px]"
                         >
                           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 flex items-center justify-center mb-3 gk-pulse-blue transition-transform group-hover:scale-105">
                             <IconDrivingLicence className="w-12 h-12 sm:w-14 sm:h-14" />
@@ -699,7 +727,7 @@ export default function CheckInModal({
                   )}
 
                   {/* Back Navigation */}
-                  <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80 shrink-0">
                     <button
                       type="button"
                       onClick={() => setOperatorStep(2)}
@@ -715,8 +743,8 @@ export default function CheckInModal({
 
               {/* STEP 4: REVIEW SCANNED DETAILS (Compact Form + Inline Scan Complete Line + Continue) */}
               {operatorStep === 4 && (
-                <div className="space-y-3 animate-in fade-in duration-150">
-                  <div>
+                <div className="flex-1 flex flex-col justify-between gap-3.5 animate-in fade-in duration-150">
+                  <div className="my-auto">
                     {documentType === 'cnic' ? (
                       <CnicForm
                         data={cnicFormData}
@@ -732,7 +760,7 @@ export default function CheckInModal({
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between gap-3 pt-1">
+                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 shrink-0">
                     <button
                       type="button"
                       onClick={() => setOperatorStep(3)}
