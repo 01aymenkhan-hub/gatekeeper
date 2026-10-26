@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { RotateCcw } from "lucide-react";
 import { CnicData } from "../types/cnic";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -10,12 +11,15 @@ interface CnicFormProps {
   data: CnicData;
   /** Called whenever a field value changes. */
   onChange: (updated: CnicData) => void;
+  /** Optional callback for operator to rescan document */
+  onRescan?: () => void;
 }
 
-export default function CnicForm({ data, onChange }: CnicFormProps) {
+export default function CnicForm({ data, onChange, onRescan }: CnicFormProps) {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
   const { language, t } = useLanguage();
+  const isUr = !isAdmin && language === "ur";
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -39,7 +43,7 @@ export default function CnicForm({ data, onChange }: CnicFormProps) {
   };
 
   if (isAdmin) {
-    /* ================= ORIGINAL ADMIN CNIC FORM ================= */
+    /* ================= ORIGINAL ADMIN CNIC FORM (100% UNCHANGED) ================= */
     const labelClass = "block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5";
     const inputClass =
       "block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors shadow-2xs";
@@ -194,57 +198,77 @@ export default function CnicForm({ data, onChange }: CnicFormProps) {
     );
   }
 
-  /* ================= OPERATOR CNIC FORM (Bilingual & Readable) ================= */
-  const textAlignClass = language === "ur" ? "text-right" : "text-left";
-  const opLabelClass = `block text-sm font-bold text-slate-800 dark:text-slate-100 mb-1.5 ${textAlignClass}`;
+  /* ================= OPERATOR STEP 4: COMPACT REVIEW SCANNED DETAILS (CNIC) ================= */
+  const textAlignClass = isUr ? "text-right" : "text-left";
+  const opLabelClass = `block text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 mb-1 ${textAlignClass}`;
   const opInputClass =
-    "block w-full rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-3 text-sm sm:text-base font-medium text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-colors shadow-2xs";
+    "block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-colors shadow-2xs";
 
   return (
-    <section className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border-2 border-emerald-500/30 dark:border-emerald-800/60 p-4 sm:p-6">
-      <div className={`mb-5 ${textAlignClass}`}>
-        <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
-          {t("extracted_cnic_title", "Extracted CNIC Information")}
+    <section className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 p-3.5 sm:p-4">
+      {/* Small simple green status line + Heading immediately below (no descriptive subtitle) */}
+      <div className="mb-3">
+        <div
+          className={`flex items-center justify-between gap-2 ${
+            isUr ? "flex-row-reverse" : "flex-row"
+          }`}
+        >
+          <span className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 tracking-wide">
+            {t("scan_complete_line", "✓ Scan Complete")}
+          </span>
+          {onRescan && (
+            <button
+              type="button"
+              onClick={onRescan}
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>{t("rescan_card_btn", "Rescan Card")}</span>
+            </button>
+          )}
+        </div>
+        <h2
+          className={`text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight mt-0.5 ${textAlignClass}`}
+        >
+          {t("review_scanned_details_title", "Review Scanned Details")}
         </h2>
-        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-          {t("extracted_cnic_subtitle", "Verify or edit the extracted details below before continuing")}
-        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
-        {/* 1. Full Name */}
-        <div>
-          <label htmlFor="fullName" className={opLabelClass}>
-            {t("field_full_name", "Full Name")} <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="fullName"
-            name="fullName"
-            type="text"
-            value={data.fullName || data.name || ""}
-            onChange={handleChange}
-            placeholder="e.g. Muhammad Mehmood Asim"
-            className={opInputClass}
-          />
+      <div className="space-y-2.5">
+        {/* Row 1: Full Name + Father / Husband Name */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div>
+            <label htmlFor="fullName" className={opLabelClass}>
+              {t("field_full_name", "Full Name")} <span className="text-red-500">*</span>
+            </label>
+            <input
+              id="fullName"
+              name="fullName"
+              type="text"
+              value={data.fullName || data.name || ""}
+              onChange={handleChange}
+              placeholder="e.g. Muhammad Mehmood Asim"
+              className={opInputClass}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="fatherHusbandName" className={opLabelClass}>
+              {t("field_father_husband_name", "Father / Husband Name")}
+            </label>
+            <input
+              id="fatherHusbandName"
+              name="fatherHusbandName"
+              type="text"
+              value={data.fatherHusbandName || data.fatherName || ""}
+              onChange={handleChange}
+              placeholder="e.g. Muhammad Asim Khan"
+              className={opInputClass}
+            />
+          </div>
         </div>
 
-        {/* 2. Father / Husband Name */}
-        <div>
-          <label htmlFor="fatherHusbandName" className={opLabelClass}>
-            {t("field_father_husband_name", "Father / Husband Name")}
-          </label>
-          <input
-            id="fatherHusbandName"
-            name="fatherHusbandName"
-            type="text"
-            value={data.fatherHusbandName || data.fatherName || ""}
-            onChange={handleChange}
-            placeholder="e.g. Muhammad Asim Khan"
-            className={opInputClass}
-          />
-        </div>
-
-        {/* 3. CNIC Number */}
+        {/* Row 2: CNIC Number */}
         <div>
           <label htmlFor="cnicNumber" className={opLabelClass}>
             {t("field_cnic_number", "CNIC Number")} <span className="text-red-500">*</span>
@@ -260,70 +284,72 @@ export default function CnicForm({ data, onChange }: CnicFormProps) {
           />
         </div>
 
-        {/* 4. Gender */}
-        <div>
-          <label htmlFor="gender" className={opLabelClass}>
-            {t("field_gender", "Gender")}
-          </label>
-          <select
-            id="gender"
-            name="gender"
-            value={data.gender || ""}
-            onChange={handleChange}
-            className={opInputClass}
-          >
-            <option value="">{t("field_gender_select", "Select Gender")}</option>
-            <option value="Male">{t("field_gender_male", "Male")}</option>
-            <option value="Female">{t("field_gender_female", "Female")}</option>
-          </select>
+        {/* Row 3: Gender + Date of Birth (Side-by-Side 2 Columns on Mobile) */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <label htmlFor="gender" className={opLabelClass}>
+              {t("field_gender", "Gender")}
+            </label>
+            <select
+              id="gender"
+              name="gender"
+              value={data.gender || ""}
+              onChange={handleChange}
+              className={opInputClass}
+            >
+              <option value="">{t("field_gender_select", "Select Gender")}</option>
+              <option value="Male">{t("field_gender_male", "Male")}</option>
+              <option value="Female">{t("field_gender_female", "Female")}</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="dateOfBirth" className={opLabelClass}>
+              {t("field_dob", "Date of Birth")}
+            </label>
+            <input
+              id="dateOfBirth"
+              name="dateOfBirth"
+              type="date"
+              value={data.dateOfBirth || ""}
+              onChange={handleChange}
+              className={opInputClass}
+            />
+          </div>
         </div>
 
-        {/* 5. Date of Birth */}
-        <div>
-          <label htmlFor="dateOfBirth" className={opLabelClass}>
-            {t("field_dob", "Date of Birth")}
-          </label>
-          <input
-            id="dateOfBirth"
-            name="dateOfBirth"
-            type="date"
-            value={data.dateOfBirth || ""}
-            onChange={handleChange}
-            className={opInputClass}
-          />
+        {/* Row 4: Date of Issue + Date of Expiry (Side-by-Side 2 Columns on Mobile) */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <label htmlFor="dateOfIssue" className={opLabelClass}>
+              {t("field_issue_date", "Date of Issue")}
+            </label>
+            <input
+              id="dateOfIssue"
+              name="dateOfIssue"
+              type="date"
+              value={data.dateOfIssue || ""}
+              onChange={handleChange}
+              className={opInputClass}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="dateOfExpiry" className={opLabelClass}>
+              {t("field_expiry_date", "Date of Expiry")}
+            </label>
+            <input
+              id="dateOfExpiry"
+              name="dateOfExpiry"
+              type="date"
+              value={data.dateOfExpiry || ""}
+              onChange={handleChange}
+              className={opInputClass}
+            />
+          </div>
         </div>
 
-        {/* 6. Date of Issue */}
-        <div>
-          <label htmlFor="dateOfIssue" className={opLabelClass}>
-            {t("field_issue_date", "Date of Issue")}
-          </label>
-          <input
-            id="dateOfIssue"
-            name="dateOfIssue"
-            type="date"
-            value={data.dateOfIssue || ""}
-            onChange={handleChange}
-            className={opInputClass}
-          />
-        </div>
-
-        {/* 7. Date of Expiry */}
-        <div>
-          <label htmlFor="dateOfExpiry" className={opLabelClass}>
-            {t("field_expiry_date", "Date of Expiry")}
-          </label>
-          <input
-            id="dateOfExpiry"
-            name="dateOfExpiry"
-            type="date"
-            value={data.dateOfExpiry || ""}
-            onChange={handleChange}
-            className={opInputClass}
-          />
-        </div>
-
-        {/* 8. CNIC Identification */}
+        {/* Row 5: Identification Mark (Full-Width Row Below) */}
         <div>
           <label htmlFor="cnicIdentification" className={opLabelClass}>
             {t("field_identification", "Identification Mark")}
@@ -342,4 +368,3 @@ export default function CnicForm({ data, onChange }: CnicFormProps) {
     </section>
   );
 }
-

@@ -1,42 +1,57 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Printer, X, User, MapPin, Calendar, Clock, Building, QrCode } from 'lucide-react';
+import { Shield, Printer, X, User, QrCode } from 'lucide-react';
 import { generateQrDataUrl } from '@/lib/qrUtils';
 
 interface VisitorBadgeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  visit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  visit: Record<string, any> | null;
+  autoPrint?: boolean;
+  onAutoPrintTriggered?: () => void;
 }
 
 export default function VisitorBadgeModal({
   isOpen,
   onClose,
   visit,
+  autoPrint = false,
+  onAutoPrintTriggered,
 }: VisitorBadgeModalProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
   const person = visit?.person || {};
-  const gateName = visit?.entryGate?.name || (visit as any)?.gateName || 'Main Gate';
-  const passCode = visit?.passCode || (visit?.id ? `GKP-${visit.id.slice(-8).toUpperCase()}` : 'GKP-PASS');
+  const gateName = visit?.entryGate?.name || visit?.gateName || 'Main Gate';
+  const passCode = visit?.passCode || (visit?.id ? `GKP-${String(visit.id).slice(-8).toUpperCase()}` : 'GKP-PASS');
 
   useEffect(() => {
     if (!visit) return;
-    const codeToEncode = visit.passCode || (visit.id ? `GKP-${visit.id.slice(-8).toUpperCase()}` : 'GKP-PASS');
+    const codeToEncode = visit.passCode || (visit.id ? `GKP-${String(visit.id).slice(-8).toUpperCase()}` : 'GKP-PASS');
     generateQrDataUrl(codeToEncode)
       .then(setQrDataUrl)
       .catch((err) => console.error('Failed to generate QR data URL:', err));
   }, [visit]);
 
+  useEffect(() => {
+    if (!isOpen || !autoPrint || !qrDataUrl) return;
+    const timer = setTimeout(() => {
+      window.print();
+      if (onAutoPrintTriggered) onAutoPrintTriggered();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [isOpen, autoPrint, qrDataUrl, onAutoPrintTriggered]);
+
   if (!isOpen || !visit) return null;
 
-  const visitDate = new Date(visit.checkInTime || Date.now()).toLocaleDateString('en-PK', {
+  const parsedCheckInDate = visit.checkInTime ? new Date(visit.checkInTime) : new Date();
+  const visitDate = parsedCheckInDate.toLocaleDateString('en-PK', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   });
-  const checkInTime = new Date(visit.checkInTime || Date.now()).toLocaleTimeString([], {
+  const checkInTime = parsedCheckInDate.toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });

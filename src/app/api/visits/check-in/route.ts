@@ -3,7 +3,21 @@ import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { generatePassCode } from '@/lib/qrUtils';
-import { formatCardNoForStorage, normalizeCardKey } from '../card-availability/route';
+
+function formatCardNoForStorage(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\s*-\s*/g, '-')
+    .replace(/\s+/g, ' ')
+    .toUpperCase();
+}
+
+function normalizeCardKey(raw: string): string {
+  return raw
+    .trim()
+    .replace(/[\s\-_.]+/g, '')
+    .toUpperCase();
+}
 
 export async function POST(request: NextRequest) {
   try {

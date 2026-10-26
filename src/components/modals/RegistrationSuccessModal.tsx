@@ -8,7 +8,8 @@ import { useLanguage } from '@/context/LanguageContext';
 interface RegistrationSuccessModalProps {
   isOpen: boolean;
   onClose: () => void;
-  visit: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  visit: Record<string, any> | null;
   onViewCard: () => void;
   onPrintBadge: () => void;
   onRegisterNext: () => void;

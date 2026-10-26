@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 
-export function formatCardNoForStorage(raw: string): string {
+function formatCardNoForStorage(raw: string): string {
   return raw
     .trim()
     .replace(/\s*-\s*/g, '-')
@@ -10,7 +10,7 @@ export function formatCardNoForStorage(raw: string): string {
     .toUpperCase();
 }
 
-export function normalizeCardKey(raw: string): string {
+function normalizeCardKey(raw: string): string {
   return raw
     .trim()
     .replace(/[\s\-_.]+/g, '')
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         available: false,
         cardNo: formatted,
+        normalizedCardNo: formatted,
         error: 'Visitor Card Number is required',
       });
     }
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         available: false,
         cardNo: formatted,
+        normalizedCardNo: formatted,
         code: 'CARD_ALREADY_ASSIGNED',
         error: 'This card is already assigned. Please choose another available card.',
       });
@@ -66,8 +68,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       available: true,
       cardNo: formatted,
+      normalizedCardNo: formatted,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Card availability check error:', error);
     return NextResponse.json(
       { error: 'Failed to check card availability' },

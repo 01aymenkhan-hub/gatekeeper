@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Camera, RotateCcw, AlertTriangle, CheckCircle2, CreditCard, Loader2 } from "lucide-react";
+import {
+  Camera,
+  RotateCcw,
+  AlertTriangle,
+  CheckCircle2,
+  CreditCard,
+  Loader2,
+  ArrowLeft,
+  ArrowRight,
+} from "lucide-react";
 import VisitorPhotoCameraModal from "./VisitorPhotoCameraModal";
 import { VisitorStepData, SubmissionStatus, VisitInfoData } from "../types/visitor";
 import { CnicData } from "../types/cnic";
@@ -21,6 +30,8 @@ interface VisitorStepProps {
   submissionStatus: SubmissionStatus;
   submissionError: string | null;
   onResetAll: () => void;
+  operatorMode?: "photo" | "details";
+  onNextPhotoStep?: () => void;
 }
 
 export default function VisitorStep({
@@ -34,6 +45,8 @@ export default function VisitorStep({
   onSubmit,
   submissionStatus,
   submissionError,
+  operatorMode = "photo",
+  onNextPhotoStep,
 }: VisitorStepProps) {
   const { user } = useAuth();
   const { language, t } = useLanguage();
@@ -52,13 +65,10 @@ export default function VisitorStep({
   useEffect(() => {
     const raw = visitorData.visitorCardNo.trim();
     if (!raw) {
-      setCardAvailability("idle");
-      setNormalizedCardDisplay("");
       return;
     }
 
     let cancelled = false;
-    setCardAvailability("checking");
 
     const timer = setTimeout(async () => {
       try {
@@ -92,15 +102,18 @@ export default function VisitorStep({
   // 2. Phone must be Pakistani format: 11 digits, starts with 03
   const isPhoneValid = /^03\d{9}$/.test(visitorData.phoneNumber.trim());
   // 3. Visitor Card No. must be non-empty and not currently assigned to an active visitor
+  const effectiveCardAvailability = visitorData.visitorCardNo.trim()
+    ? cardAvailability
+    : "idle";
   const isCardNoValid =
     visitorData.visitorCardNo.trim().length > 0 &&
-    cardAvailability !== "taken" &&
-    cardAvailability !== "checking";
+    effectiveCardAvailability !== "taken" &&
+    effectiveCardAvailability !== "checking";
 
-  // Complete step 3 form readiness
+  // Complete form readiness
   const isFormReady = isPhotoValid && isPhoneValid && isCardNoValid;
 
-  // Extract primary name & doc ID from Step 2 for summary
+  // Extract primary name & doc ID from Step 3/4 for summary
   const displayName =
     documentType === "cnic"
       ? cnicData.fullName || cnicData.name || "N/A"
@@ -111,7 +124,7 @@ export default function VisitorStep({
       ? cnicData.cnicNumber || cnicData.cnic || "N/A"
       : dlsData.licenseNumber || "N/A";
 
-  // Handle Photo captured from face camera
+  // Handle Photo captured from face camera (do NOT auto-advance; operator reviews and presses Continue)
   const handlePhotoCaptured = (file: File, previewUrl: string) => {
     setIsCameraOpen(false);
     onChangeVisitorData({
@@ -146,9 +159,16 @@ export default function VisitorStep({
 
   // Handle visitor card number change (manual entry only)
   const handleCardNoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextVal = e.target.value;
+    if (!nextVal.trim()) {
+      setCardAvailability("idle");
+      setNormalizedCardDisplay("");
+    } else {
+      setCardAvailability("checking");
+    }
     onChangeVisitorData({
       ...visitorData,
-      visitorCardNo: e.target.value,
+      visitorCardNo: nextVal,
     });
   };
 
@@ -225,7 +245,6 @@ export default function VisitorStep({
             </p>
           </div>
 
-          {/* Hidden File Input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -234,7 +253,6 @@ export default function VisitorStep({
             onChange={handleFileUpload}
           />
 
-          {/* Photo Box: Empty State vs Preview State */}
           {!visitorData.photoPreview ? (
             <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-6 flex flex-col items-center justify-center bg-slate-50/70 dark:bg-slate-800/40">
               <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
@@ -260,7 +278,6 @@ export default function VisitorStep({
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
-                {/* Option 1: Capture Image */}
                 <button
                   type="button"
                   onClick={() => setIsCameraOpen(true)}
@@ -288,7 +305,6 @@ export default function VisitorStep({
                   <span>Capture Photo</span>
                 </button>
 
-                {/* Option 2: Upload Image */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -312,9 +328,7 @@ export default function VisitorStep({
               </div>
             </div>
           ) : (
-            /* Preview State */
             <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
-              {/* Image Preview */}
               <div className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-xl overflow-hidden shadow-xs border-2 border-white dark:border-slate-700 bg-slate-900 shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -324,7 +338,6 @@ export default function VisitorStep({
                 />
               </div>
 
-              {/* Actions for Existing Photo */}
               <div className="flex-1 w-full space-y-2">
                 <div className="flex items-center space-x-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
@@ -641,168 +654,212 @@ export default function VisitorStep({
     );
   }
 
-  /* ── Operator Visual-First Step 3 UI ── */
-  return (
-    <div className="space-y-5">
-      {/* ── Summary Card: Host Info & Document Info ── */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
-          <div
-            className={`bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 border border-slate-200/80 dark:border-slate-700/80 ${
-              isUr ? "text-right" : "text-left"
-            }`}
-          >
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block">
-              {t("host_summary_label")}
-            </span>
-            <p className="font-extrabold text-slate-900 dark:text-white mt-0.5 text-sm sm:text-base">
-              {visitInfo.meetName || "N/A"}
-            </p>
-            <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5 font-medium">
-              {t("dept_label")}:{" "}
-              <span className="text-slate-800 dark:text-slate-200 font-bold">
-                {visitInfo.department || "N/A"}
-              </span>
-            </p>
-          </div>
-
-          <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-2">
+  /* ── OPERATOR STEP 5: CAPTURE VISITOR PHOTO ONLY ── */
+  if (operatorMode === "photo") {
+    return (
+      <div className="space-y-3.5">
+        {/* 1. Compact Summary of Fetched Visitor Details at the Top */}
+        <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-800 p-3 shadow-2xs">
+          <div className="grid grid-cols-2 gap-2.5 text-xs">
             <div className={isUr ? "text-right" : "text-left"}>
-              <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block">
-                {documentType === "cnic" ? t("cnic_title") : t("dls_title")}
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
+                {t("host_summary_label", "Visitor to Meet")}
               </span>
-              <p className="font-extrabold text-slate-900 dark:text-white mt-0.5 truncate max-w-[170px] text-sm sm:text-base">
-                {displayName}
+              <p className="font-extrabold text-slate-900 dark:text-white truncate text-xs sm:text-sm">
+                {visitInfo.meetName || "N/A"}
+              </p>
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] font-semibold truncate">
+                {t("dept_label", "Dept")}:{" "}
+                <span className="text-slate-800 dark:text-slate-200 font-bold">
+                  {visitInfo.department || "N/A"}
+                </span>
               </p>
             </div>
-            <span className="text-xs sm:text-sm font-mono font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 px-3 py-1 rounded-lg shrink-0">
-              {displayDocNum}
-            </span>
+
+            <div className={isUr ? "text-right" : "text-left"}>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block">
+                {documentType === "cnic"
+                  ? t("cnic_title", "Pakistani CNIC")
+                  : t("dls_title", "Driving Licence")}
+              </span>
+              <p className="font-extrabold text-slate-900 dark:text-white truncate text-xs sm:text-sm">
+                {displayName}
+              </p>
+              <span className="inline-block text-[11px] font-mono font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-md mt-0.5">
+                {displayDocNum}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ── 1. Visitor Photo Capture Section (Large, Clear, Visual Action) ── */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div className={isUr ? "text-right flex-1" : "text-left flex-1"}>
-            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
-              {t("visitor_photo_title")} <span className="text-red-500">*</span>
-            </h2>
-            <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-              {t("capture_visitor_photo_sub")}
-            </p>
-          </div>
-
-          {isPhotoValid ? (
-            <span className="text-xs sm:text-sm font-bold px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
-              {t("photo_attached_badge")}
-            </span>
-          ) : (
-            <span className="text-xs sm:text-sm font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 border border-amber-200 dark:border-amber-800 px-3 py-1 rounded-full shrink-0">
-              {t("photo_required_badge")}
-            </span>
-          )}
-        </div>
-
-        {/* Before Photo Capture vs After Photo Capture */}
-        {!visitorData.photoPreview ? (
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={() => setIsCameraOpen(true)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setIsCameraOpen(true);
-              }
-            }}
-            className="group border-2 border-dashed border-blue-400 dark:border-blue-600 hover:border-blue-600 dark:hover:border-blue-400 rounded-2xl p-7 sm:p-9 flex flex-col items-center justify-center text-center bg-blue-50/50 hover:bg-blue-50/90 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 transition-all cursor-pointer active:scale-[0.99]"
-          >
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-blue-100 dark:bg-blue-900/70 text-blue-600 dark:text-blue-300 flex items-center justify-center mb-4 gk-pulse-blue transition-transform group-hover:scale-105">
-              <Camera className="w-12 h-12 sm:w-14 sm:h-14 stroke-[2]" />
-            </div>
-
-            <p className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white mb-1">
-              {t("capture_visitor_photo")}
-            </p>
-            <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mb-5 max-w-xs">
-              {t("capture_visitor_photo_sub")}
-            </p>
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsCameraOpen(true);
-              }}
-              className="py-3.5 px-8 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm sm:text-base font-extrabold shadow-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer"
-            >
-              <Camera className="w-5 h-5" />
-              <span>{t("capture_photo_btn")}</span>
-            </button>
-          </div>
-        ) : (
-          /* After Photo Capture: Clear Preview + Single Obvious Retake Photo Action */
-          <div className="flex flex-col sm:flex-row items-center gap-5 p-5 bg-emerald-50/40 dark:bg-slate-800/60 rounded-2xl border-2 border-emerald-200 dark:border-emerald-800/70">
-            <div className="relative w-36 h-36 sm:w-40 sm:h-40 rounded-2xl overflow-hidden shadow-sm border-2 border-white dark:border-slate-700 bg-slate-900 shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={visitorData.photoPreview}
-                alt="Visitor Photo"
-                className="w-full h-full object-cover"
-              />
-            </div>
-
-            <div
-              className={`flex-1 w-full space-y-3 ${
-                isUr ? "text-right" : "text-left"
+        {/* 2. Visitor Photo Capture Section */}
+        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-xs">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2
+              className={`text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight ${
+                isUr ? "text-right flex-1" : "text-left flex-1"
               }`}
             >
+              {t("capture_visitor_photo", "Capture Visitor Photo")}{" "}
+              <span className="text-red-500">*</span>
+            </h2>
+
+            {isPhotoValid ? (
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                {t("photo_attached_badge", "Photo Attached ✓")}
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 border border-amber-200 dark:border-amber-800 px-2.5 py-0.5 rounded-full shrink-0">
+                {t("photo_required_badge", "Required")}
+              </span>
+            )}
+          </div>
+
+          {!visitorData.photoPreview ? (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setIsCameraOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setIsCameraOpen(true);
+                }
+              }}
+              className="group border-2 border-dashed border-blue-400 dark:border-blue-600 hover:border-blue-600 dark:hover:border-blue-400 rounded-2xl p-6 sm:p-7 flex flex-col items-center justify-center text-center bg-blue-50/50 hover:bg-blue-50/90 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 transition-all cursor-pointer active:scale-[0.99]"
+            >
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-blue-100 dark:bg-blue-900/70 text-blue-600 dark:text-blue-300 flex items-center justify-center mb-3 gk-pulse-blue transition-transform group-hover:scale-105">
+                <Camera className="w-10 h-10 sm:w-12 sm:h-12 stroke-[2]" />
+              </div>
+
+              <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white mb-1">
+                {t("capture_visitor_photo", "Capture Visitor Photo")}
+              </p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-4 max-w-xs">
+                {t(
+                  "capture_visitor_photo_sub",
+                  "Tap below to open camera and take a clear photo of the visitor"
+                )}
+              </p>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsCameraOpen(true);
+                }}
+                className="py-3 px-7 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm sm:text-base font-extrabold shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Camera className="w-5 h-5" />
+                <span>{t("capture_photo_btn", "Capture Photo")}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row items-center gap-4 p-4 bg-emerald-50/40 dark:bg-slate-800/60 rounded-2xl border-2 border-emerald-200 dark:border-emerald-800/70">
+              <div className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-2xl overflow-hidden shadow-sm border-2 border-white dark:border-slate-700 bg-slate-900 shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={visitorData.photoPreview}
+                  alt="Visitor Photo"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
               <div
-                className={`flex items-center gap-2 ${
-                  isUr ? "flex-row-reverse" : "flex-row"
+                className={`flex-1 w-full space-y-2.5 text-center sm:text-left ${
+                  isUr ? "sm:text-right" : "sm:text-left"
                 }`}
               >
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="text-base font-extrabold text-slate-900 dark:text-white">
-                  {t("photo_confirmed_title")}
-                </span>
-              </div>
-
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsCameraOpen(true)}
-                  className="py-3 px-5 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 shadow-2xs inline-flex items-center gap-2 transition-all cursor-pointer"
+                <div
+                  className={`flex items-center justify-center sm:justify-start gap-2 ${
+                    isUr ? "sm:flex-row-reverse" : "sm:flex-row"
+                  }`}
                 >
-                  <RotateCcw className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span>{t("retake_photo_btn")}</span>
-                </button>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                    {t("photo_confirmed_title", "Visitor Photo Captured")}
+                  </span>
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCameraOpen(true)}
+                    className="py-2.5 px-4 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 shadow-2xs inline-flex items-center gap-2 transition-all cursor-pointer"
+                  >
+                    <RotateCcw className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span>{t("retake_photo_btn", "Retake Photo")}</span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
 
-      {/* ── 2. Phone Number Section ── */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs">
-        <div className={`mb-3 ${isUr ? "text-right" : "text-left"}`}>
+        {/* 3. Back & Continue Navigation */}
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onBack}
+            className="py-3 px-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer shadow-2xs"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>{t("back_btn", "Back")}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => isPhotoValid && onNextPhotoStep && onNextPhotoStep()}
+            disabled={!isPhotoValid}
+            className={`flex-1 max-w-xs py-3 px-6 rounded-xl text-xs sm:text-sm font-extrabold shadow-xs flex items-center justify-center gap-2 transition-all ${
+              isPhotoValid
+                ? "bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white cursor-pointer"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-700 cursor-not-allowed shadow-none"
+            }`}
+          >
+            <span>{t("continue_btn", "Continue")}</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Visitor Photo Camera Modal */}
+        <VisitorPhotoCameraModal
+          isOpen={isCameraOpen}
+          onClose={() => setIsCameraOpen(false)}
+          onCapture={handlePhotoCaptured}
+        />
+      </div>
+    );
+  }
+
+  /* ── OPERATOR STEP 6: REGISTRATION DETAILS (PHONE, MANUAL VC NUMBER, CARRYING ITEMS & SUBMIT) ── */
+  return (
+    <div className="space-y-3.5">
+      {/* Heading */}
+      <div className={isUr ? "text-right" : "text-left"}>
+        <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
+          {t("registration_details_title", "Registration Details")}
+        </h2>
+      </div>
+
+      {/* 1. Phone Number Section */}
+      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
+        <div className={`mb-2 ${isUr ? "text-right" : "text-left"}`}>
           <label
             htmlFor="visitorPhoneNumber"
-            className="block text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight"
+            className="block text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight"
           >
-            {t("phone_number_label")} <span className="text-red-500">*</span>
+            {t("phone_number_label", "Phone Number")} <span className="text-red-500">*</span>
           </label>
-          <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-            {t("phone_number_hint")}
+          <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+            {t("phone_number_hint", "11-digit mobile number starting with 03 (e.g. 03001234567)")}
           </p>
         </div>
 
-        <div className="relative max-w-md">
+        <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -824,7 +881,7 @@ export default function VisitorStep({
             value={visitorData.phoneNumber}
             onChange={handlePhoneChange}
             placeholder="03001234567"
-            className={`block w-full pl-11 pr-4 py-3.5 rounded-xl border text-base font-mono font-bold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 transition-colors shadow-2xs ${
+            className={`block w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm sm:text-base font-mono font-bold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 transition-colors shadow-2xs ${
               visitorData.phoneNumber.length > 0 && !isPhoneValid
                 ? "border-red-400 focus:border-red-500 focus:ring-red-500/20 bg-red-50/20"
                 : isPhoneValid
@@ -836,42 +893,51 @@ export default function VisitorStep({
 
         {visitorData.phoneNumber.length > 0 && !isPhoneValid && (
           <p
-            className={`text-xs sm:text-sm font-bold text-red-600 dark:text-red-400 mt-2 flex items-center gap-1.5 ${
+            className={`text-xs font-bold text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1.5 ${
               isUr ? "flex-row-reverse text-right" : "flex-row text-left"
             }`}
           >
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{t("phone_number_error")}</span>
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              {t(
+                "phone_number_error",
+                "Please enter a valid 11-digit mobile number starting with 03."
+              )}
+            </span>
           </p>
         )}
       </section>
 
-      {/* ── 3. Visitor Card Number Section (Manual Entry + Duplicate Active Card Prevention) ── */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs">
-        <div className={`mb-3 ${isUr ? "text-right" : "text-left"}`}>
+      {/* 2. Visitor Card Number Section (Manual Entry + Duplicate Active Card Prevention) */}
+      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
+        <div className={`mb-2 ${isUr ? "text-right" : "text-left"}`}>
           <label
             htmlFor="visitorCardNo"
-            className="block text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight"
+            className="block text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight"
           >
-            {t("visitor_card_no_label")} <span className="text-red-500">*</span>
+            {t("visitor_card_no_label", "Visitor Card Number")}{" "}
+            <span className="text-red-500">*</span>
           </label>
-          <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-            {t("visitor_card_no_hint")}
+          <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+            {t(
+              "visitor_card_no_hint",
+              "Enter the physical card number handed to the visitor (e.g. VC-12)"
+            )}
           </p>
         </div>
 
-        <div className="max-w-md space-y-3">
+        <div className="space-y-2.5">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <CreditCard className="w-5 h-5" />
+              <CreditCard className="w-4 h-4" />
             </div>
             <input
               id="visitorCardNo"
               type="text"
               value={visitorData.visitorCardNo}
               onChange={handleCardNoChange}
-              placeholder={t("visitor_card_no_placeholder")}
-              className={`block w-full pl-11 pr-10 py-3.5 rounded-xl border text-base font-mono font-extrabold uppercase text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 transition-colors shadow-2xs ${
+              placeholder={t("visitor_card_no_placeholder", "e.g. VC-12 or 104")}
+              className={`block w-full pl-10 pr-10 py-2.5 rounded-xl border text-sm sm:text-base font-mono font-extrabold uppercase text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 transition-colors shadow-2xs ${
                 cardAvailability === "taken"
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500/20 bg-red-50/30 dark:bg-red-950/20"
                   : cardAvailability === "available"
@@ -886,38 +952,39 @@ export default function VisitorStep({
             )}
           </div>
 
-          {/* Prominent Duplicate Active Card Error Banner */}
           {cardAvailability === "taken" && (
             <div
-              className={`p-3.5 rounded-xl bg-red-50 dark:bg-red-950/50 border-2 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 flex items-center gap-3 animate-in fade-in duration-150 ${
+              className={`p-3 rounded-xl bg-red-50 dark:bg-red-950/50 border-2 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 flex items-center gap-2.5 animate-in fade-in duration-150 ${
                 isUr ? "flex-row-reverse text-right" : "flex-row text-left"
               }`}
             >
-              <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400 shrink-0" />
-              <p className="text-sm sm:text-base font-extrabold leading-snug">
-                {t("visitor_card_already_assigned")}
+              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
+              <p className="text-xs sm:text-sm font-extrabold leading-snug">
+                {t(
+                  "visitor_card_already_assigned",
+                  "This card is already assigned. Please choose another available card."
+                )}
               </p>
             </div>
           )}
 
-          {/* Clear Confirmation Badge of Entered Physical Card Number */}
           {cardAvailability === "available" && normalizedCardDisplay && (
             <div
-              className={`p-3 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 flex items-center justify-between gap-3 ${
+              className={`px-3 py-2 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 flex items-center justify-between gap-2 ${
                 isUr ? "flex-row-reverse" : "flex-row"
               }`}
             >
               <div
-                className={`flex items-center gap-2 ${
+                className={`flex items-center gap-1.5 ${
                   isUr ? "flex-row-reverse" : "flex-row"
                 }`}
               >
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="text-xs sm:text-sm font-bold text-emerald-800 dark:text-emerald-200">
-                  {t("visitor_card_available_badge")}
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200">
+                  {t("visitor_card_available_badge", "Assigned Physical Card:")}
                 </span>
               </div>
-              <span className="text-sm sm:text-base font-mono font-extrabold px-3 py-1 rounded-lg bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shadow-2xs">
+              <span className="text-xs sm:text-sm font-mono font-extrabold px-2.5 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shadow-2xs">
                 {normalizedCardDisplay}
               </span>
             </div>
@@ -925,10 +992,10 @@ export default function VisitorStep({
         </div>
       </section>
 
-      {/* ── 4. Belongings / Carried Items Section (Optional) ── */}
-      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs">
+      {/* 3. Carrying Items Section (Optional, Compact) */}
+      <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
         <div
-          className={`flex items-center justify-between gap-4 ${
+          className={`flex items-center justify-between gap-3 ${
             isUr ? "flex-row-reverse" : "flex-row"
           }`}
         >
@@ -938,15 +1005,18 @@ export default function VisitorStep({
                 isUr ? "flex-row-reverse" : "flex-row"
               }`}
             >
-              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
-                {t("carrying_items_title")}
+              <h2 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">
+                {t("carrying_items_title", "Carrying Items")}
               </h2>
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-md uppercase tracking-wider">
-                {t("optional_badge")}
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                {t("optional_badge", "Optional")}
               </span>
             </div>
-            <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-              {t("carrying_items_subtitle")}
+            <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+              {t(
+                "carrying_items_subtitle",
+                "Turn on if the visitor has a laptop, bag, or tools"
+              )}
             </p>
           </div>
 
@@ -962,14 +1032,14 @@ export default function VisitorStep({
                 belongings: nextState ? visitorData.belongings || "" : "",
               });
             }}
-            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
               visitorData.hasBelongings
                 ? "bg-blue-600"
                 : "bg-slate-300 dark:bg-slate-700"
             }`}
           >
             <span
-              className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
                 visitorData.hasBelongings ? "translate-x-5" : "translate-x-0"
               }`}
             />
@@ -977,18 +1047,18 @@ export default function VisitorStep({
         </div>
 
         {visitorData.hasBelongings && (
-          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 animate-in fade-in duration-200 space-y-2">
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 animate-in fade-in duration-200 space-y-1.5">
             <label
               htmlFor="carriedItemsInput"
-              className={`block text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300 ${
+              className={`block text-xs font-bold text-slate-700 dark:text-slate-300 ${
                 isUr ? "text-right" : "text-left"
               }`}
             >
-              {t("list_carried_items_label")}
+              {t("list_carried_items_label", "List Carried Items")}
             </label>
             <textarea
               id="carriedItemsInput"
-              rows={3}
+              rows={2}
               value={visitorData.belongings || ""}
               onChange={(e) =>
                 onChangeVisitorData({
@@ -996,8 +1066,8 @@ export default function VisitorStep({
                   belongings: e.target.value,
                 })
               }
-              placeholder={t("carried_items_placeholder")}
-              className={`block w-full p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-sm sm:text-base text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20 transition-colors shadow-2xs ${
+              placeholder={t("carried_items_placeholder", "e.g. Laptop, Backpack, Tool Kit")}
+              className={`block w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20 transition-colors shadow-2xs ${
                 isUr ? "text-right" : "text-left"
               }`}
             />
@@ -1005,40 +1075,28 @@ export default function VisitorStep({
         )}
       </section>
 
-      {/* ── Submission Error Alert (if any) ── */}
+      {/* Submission Error Alert (if any) */}
       {submissionStatus === "error" && submissionError && (
         <div
-          className={`bg-red-50 dark:bg-red-950/60 border-2 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3.5 rounded-xl text-sm flex items-center gap-3 ${
+          className={`bg-red-50 dark:bg-red-950/60 border-2 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2.5 ${
             isUr ? "flex-row-reverse text-right" : "flex-row text-left"
           }`}
         >
-          <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400 shrink-0" />
+          <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
           <p className="font-extrabold">{submissionError}</p>
         </div>
       )}
 
-      {/* ── Bottom Navigation & Submit Bar ── */}
-      <div className="flex items-center justify-between gap-4 pt-2">
+      {/* 4. Bottom Navigation & Final Submit Registration Button */}
+      <div className="flex items-center justify-between gap-3 pt-1">
         <button
           type="button"
           onClick={onBack}
           disabled={submissionStatus === "submitting"}
-          className="py-3.5 px-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm sm:text-base font-bold transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-2xs"
+          className="py-3 px-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-2xs"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          <span>{t("back_btn")}</span>
+          <ArrowLeft className="w-4 h-4" />
+          <span>{t("back_btn", "Back")}</span>
         </button>
 
         <button
@@ -1049,7 +1107,7 @@ export default function VisitorStep({
             submissionStatus === "submitting" ||
             submissionStatus === "success"
           }
-          className={`flex-1 max-w-xs py-3.5 px-6 rounded-xl text-white text-sm sm:text-base font-extrabold shadow-xs transition-all flex items-center justify-center gap-2 ${
+          className={`flex-1 max-w-xs py-3 px-6 rounded-xl text-white text-xs sm:text-sm font-extrabold shadow-xs transition-all flex items-center justify-center gap-2 ${
             submissionStatus === "submitting"
               ? "bg-blue-500 cursor-not-allowed"
               : submissionStatus === "success"
@@ -1063,25 +1121,18 @@ export default function VisitorStep({
         >
           {submissionStatus === "submitting" ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin text-white" />
-              <span>{t("submitting_btn")}</span>
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+              <span>{t("submitting_btn", "Submitting...")}</span>
             </>
           ) : submissionStatus === "success" ? (
-            <span>{t("submitted_btn")}</span>
+            <span>{t("submitted_btn", "Submitted ✓")}</span>
           ) : submissionStatus === "error" ? (
-            <span>{t("try_again_btn")}</span>
+            <span>{t("try_again_btn", "Try Again")}</span>
           ) : (
-            <span>{t("submit_registration_btn")}</span>
+            <span>{t("submit_registration_btn", "Submit Registration")}</span>
           )}
         </button>
       </div>
-
-      {/* Visitor Photo Camera Modal */}
-      <VisitorPhotoCameraModal
-        isOpen={isCameraOpen}
-        onClose={() => setIsCameraOpen(false)}
-        onCapture={handlePhotoCaptured}
-      />
     </div>
   );
 }
