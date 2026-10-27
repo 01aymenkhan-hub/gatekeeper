@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -20,6 +20,8 @@ import {
   ChevronRight,
   TrendingUp,
   Truck,
+  Sparkles,
+  X,
 } from 'lucide-react';
 import {
   IconRegisterVisitor,
@@ -33,8 +35,10 @@ import CheckOutModal from '@/components/modals/CheckOutModal';
 import CheckStatusModal from '@/components/modals/CheckStatusModal';
 import VisitorBadgeModal from '@/components/modals/VisitorBadgeModal';
 import CategoryRecordsModal, { CategoryModalConfig } from '@/components/modals/CategoryRecordsModal';
+import UpcomingGuestsModal from '@/components/modals/UpcomingGuestsModal';
 import GatekeeperLoader from '@/components/ui/GatekeeperLoader';
 import { playSelectSound } from '@/utils/interactionSound';
+import type { GuestInvitationRecord } from '@/app/api/employee/invitations/route';
 
 export default function DashboardPage() {
   const { user, currentGate } = useAuth();
@@ -77,6 +81,15 @@ export default function DashboardPage() {
   const [selectedPersonForDetails, setSelectedPersonForDetails] = useState<any>(null);
   const [selectedVisitBadge, setSelectedVisitBadge] = useState<any>(null);
 
+  // Shared Upcoming Guests state (visible to all Gate Operators & Admins regardless of gate)
+  const [isUpcomingGuestsOpen, setIsUpcomingGuestsOpen] = useState(false);
+  const [upcomingInvitations, setUpcomingInvitations] = useState<GuestInvitationRecord[]>([]);
+  const [upcomingPendingCount, setUpcomingPendingCount] = useState(0);
+  const [newInvitationToast, setNewInvitationToast] = useState<GuestInvitationRecord | null>(null);
+  const knownInvitationIdsRef = useRef<Set<string>>(new Set());
+  const initialInvitationsLoadedRef = useRef(false);
+  const upcomingReqInFlightRef = useRef(false);
+
   // Operator-only Category Records Modal state
   const [categoryModalConfig, setCategoryModalConfig] = useState<CategoryModalConfig | null>(null);
 
@@ -90,6 +103,44 @@ export default function DashboardPage() {
     });
     setIsCheckStatusOpen(true);
   };
+
+  const fetchUpcomingInvitations = useCallback(async () => {
+    if (upcomingReqInFlightRef.current) return;
+    upcomingReqInFlightRef.current = true;
+    try {
+      const res = await fetch('/api/invitations/upcoming', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        const incoming: GuestInvitationRecord[] = Array.isArray(data.invitations)
+          ? data.invitations
+          : [];
+        if (!initialInvitationsLoadedRef.current) {
+          incoming.forEach((inv) => knownInvitationIdsRef.current.add(inv.id));
+          initialInvitationsLoadedRef.current = true;
+        } else {
+          const newlyCreated = incoming.find((inv) => !knownInvitationIdsRef.current.has(inv.id));
+          incoming.forEach((inv) => knownInvitationIdsRef.current.add(inv.id));
+          if (newlyCreated) {
+            setNewInvitationToast(newlyCreated);
+          }
+        }
+        setUpcomingInvitations(incoming);
+        setUpcomingPendingCount(
+          typeof data.pendingCount === 'number' ? data.pendingCount : incoming.length
+        );
+      }
+    } catch {
+      // Ignore transient network errors
+    } finally {
+      upcomingReqInFlightRef.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUpcomingInvitations();
+    const interval = setInterval(fetchUpcomingInvitations, 5000);
+    return () => clearInterval(interval);
+  }, [fetchUpcomingInvitations]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -150,6 +201,20 @@ export default function DashboardPage() {
             <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 w-full xl:w-auto">
               {/* Mobile Row 1: Check Status (50%) + Check Out (50%) | Tablet/Desktop: inline flex buttons */}
               <div className="grid grid-cols-2 gap-2.5 w-full sm:w-auto sm:flex sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => setIsUpcomingGuestsOpen(true)}
+                  className="w-full sm:w-auto sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-sm text-xs font-bold transition-all border border-white/20 cursor-pointer min-h-[42px] whitespace-nowrap"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
+                  <span>Upcoming Guests</span>
+                  {upcomingPendingCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950">
+                      {upcomingPendingCount}
+                    </span>
+                  )}
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setIsCheckStatusOpen(true)}
@@ -508,6 +573,45 @@ export default function DashboardPage() {
         /* (Task icons, Urdu/English labels, visual tiles, category records modal)  */
         /* ========================================================================= */
         <div className="space-y-6">
+          {/* Real-Time New Guest Invitation Notification Banner for All Operators */}
+          {newInvitationToast && (
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-600 via-blue-600 to-emerald-600 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in-0 slide-in-from-top-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-5 h-5 text-amber-300" />
+                </div>
+                <div className={language === 'ur' ? 'text-right' : 'text-left'}>
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-blue-100">
+                    {t('new_guest_invitation_alert', 'New Upcoming Guest Invitation Received!')}
+                  </p>
+                  <p className="text-sm font-bold mt-0.5">
+                    {newInvitationToast.guestName} &bull; Card #{newInvitationToast.visitorCardNo} &bull; Host: {newInvitationToast.employeeName} ({newInvitationToast.departmentName})
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playSelectSound();
+                    setNewInvitationToast(null);
+                    setIsUpcomingGuestsOpen(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold cursor-pointer shadow-xs"
+                >
+                  {t('upcoming_guests_btn', 'Upcoming Guests')} ({upcomingPendingCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewInvitationToast(null)}
+                  className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Gate Control Hero Section */}
           <div className="rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 p-5 sm:p-7 text-white shadow-xl shadow-blue-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
             <div className={`space-y-1.5 w-full md:flex-1 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
@@ -530,9 +634,24 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            {/* Live Clock & Date Badge */}
-            <div className="w-full md:w-auto shrink-0 flex items-center justify-between md:justify-end gap-3 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/15">
-              <div className="flex items-center gap-2.5">
+            {/* Shared Upcoming Guests Button + Live Clock & Date Badge */}
+            <div className="w-full md:w-auto shrink-0 flex flex-wrap items-center justify-between md:justify-end gap-2.5 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  playSelectSound();
+                  setIsUpcomingGuestsOpen(true);
+                }}
+                className="relative flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs sm:text-sm font-extrabold shadow-lg shadow-amber-500/20 transition-all cursor-pointer active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-slate-950 shrink-0" />
+                <span>{t('upcoming_guests_btn', 'Upcoming Guests')}</span>
+                <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-slate-950 text-amber-300 text-xs font-extrabold flex items-center justify-center">
+                  {upcomingPendingCount}
+                </span>
+              </button>
+
+              <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/15">
                 <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
                   <Clock className="w-5 h-5 text-amber-300" />
                 </div>
@@ -1152,6 +1271,26 @@ export default function DashboardPage() {
           visit={selectedVisitBadge}
         />
       )}
+
+      {/* Shared Upcoming Guests Modal (All Operators & Admins) */}
+      <UpcomingGuestsModal
+        isOpen={isUpcomingGuestsOpen}
+        onClose={() => setIsUpcomingGuestsOpen(false)}
+        invitations={upcomingInvitations}
+        pendingCount={upcomingPendingCount}
+        onRefresh={async () => {
+          await fetchUpcomingInvitations();
+          await fetchStats();
+        }}
+        onCheckInSuccess={(createdVisit) => {
+          setIsUpcomingGuestsOpen(false);
+          fetchUpcomingInvitations();
+          fetchStats();
+          if (createdVisit) {
+            setSelectedVisitBadge(createdVisit);
+          }
+        }}
+      />
 
       {/* Operator Full-Screen Category / Status Records Modal */}
       {!isAdmin && (

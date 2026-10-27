@@ -199,6 +199,24 @@ export async function POST(request: NextRequest) {
         throw conflictErr;
       }
 
+      const duplicatePendingInvitation = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id"
+        FROM "guest_invitations"
+        WHERE "status"::text = 'PENDING'
+          AND "normalizedCardKey" = ${cardComparisonKey}
+        LIMIT 1
+      `;
+
+      if (duplicatePendingInvitation.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const conflictErr: any = new Error(
+          'This card is already preassigned to an upcoming invited guest. Please choose another available card.'
+        );
+        conflictErr.status = 409;
+        conflictErr.code = 'CARD_ALREADY_ASSIGNED';
+        throw conflictErr;
+      }
+
       let existingPerson = null;
 
       if (cleanCnic) {

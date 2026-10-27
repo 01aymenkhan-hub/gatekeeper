@@ -17,6 +17,9 @@ export async function GET() {
     }
 
     const dbUsers = await prisma.user.findMany({
+      where: {
+        role: { in: ['ADMIN', 'OPERATOR'] },
+      },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -74,7 +77,10 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    const existing = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
     if (existing) {
       return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
     }
@@ -184,6 +190,7 @@ export async function PATCH(request: NextRequest) {
           email: normalizedEmail,
           id: { not: id },
         },
+        select: { id: true },
       });
       if (existing) {
         return NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });

@@ -449,6 +449,178 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
     en: 'Still working, please wait a moment...',
     ur: 'کارروائی جاری ہے، براہ کرم تھوڑا انتظار کریں...',
   },
+
+  // ── Employee Portal & Shared Guest Invitation System ──
+  emp_portal_title: {
+    en: 'Employee Guest Portal',
+    ur: 'ایمپلائی گیسٹ پورٹل',
+  },
+  emp_portal_subtitle: {
+    en: 'Invite guests and view your visited guest history',
+    ur: 'مہمانوں کو مدعو کریں اور اپنے مہمانوں کا ریکارڈ دیکھیں',
+  },
+  emp_sign_in_tab: {
+    en: 'Employee Sign In',
+    ur: 'ایمپلائی لاگ اِن',
+  },
+  emp_register_tab: {
+    en: 'First-Time Registration',
+    ur: 'نئی ایمپلائی رجسٹریشن',
+  },
+  emp_full_name: {
+    en: 'Full Name',
+    ur: 'مکمل نام',
+  },
+  emp_department: {
+    en: 'Department',
+    ur: 'شعبہ (ڈیپارٹمنٹ)',
+  },
+  emp_position: {
+    en: 'Position / Designation',
+    ur: 'عہدہ',
+  },
+  emp_phone: {
+    en: 'Phone Number',
+    ur: 'فون نمبر',
+  },
+  emp_email: {
+    en: 'Email Address',
+    ur: 'ای میل ایڈریس',
+  },
+  emp_password: {
+    en: 'Password',
+    ur: 'پاس ورڈ',
+  },
+  emp_confirm_password: {
+    en: 'Confirm Password',
+    ur: 'پاس ورڈ کی تصدیق کریں',
+  },
+  emp_submit_registration: {
+    en: 'Submit Registration Request',
+    ur: 'رجسٹریشن کی درخواست جمع کریں',
+  },
+  emp_status_pending_title: {
+    en: 'Registration Pending Approval',
+    ur: 'رجسٹریشن کی منظوری زیرِ التواء ہے',
+  },
+  emp_status_pending_desc: {
+    en: 'Your employee account request has been received. This screen updates automatically as soon as an administrator approves your request.',
+    ur: 'آپ کی درخواست موصول ہو گئی ہے۔ ایڈمن کی منظوری ملتے ہی یہ اسکرین خودکار طور پر اپ ڈیٹ ہو جائے گی۔',
+  },
+  emp_status_rejected_title: {
+    en: 'Registration Request Not Approved',
+    ur: 'رجسٹریشن کی درخواست منظور نہیں ہوئی',
+  },
+  emp_status_rejected_desc: {
+    en: 'Your employee registration request was not approved by the administrator.',
+    ur: 'آپ کی ایمپلائی رجسٹریشن کی درخواست ایڈمن کی جانب سے منظور نہیں کی گئی۔',
+  },
+  emp_status_approved_banner: {
+    en: 'Your account has been approved! Entering Employee Dashboard...',
+    ur: 'آپ کا اکاؤنٹ منظور ہو گیا ہے! ایمپلائی ڈیش بورڈ کھولا جا رہا ہے...',
+  },
+  emp_action_invite_guest: {
+    en: 'Invite Guest',
+    ur: 'مہمان کو مدعو کریں',
+  },
+  emp_action_invite_guest_desc: {
+    en: 'Pre-register an upcoming guest and assign an available visitor card',
+    ur: 'آنے والے مہمان کا اندراج کریں اور دستیاب وزیٹر کارڈ تفویض کریں',
+  },
+  emp_action_visited_guests: {
+    en: 'Visited Guests',
+    ur: 'آنے والے مہمانوں کا ریکارڈ',
+  },
+  emp_action_visited_guests_desc: {
+    en: 'View your invited and visited guest history and re-invite returning guests',
+    ur: 'اپنے مدعو کردہ مہمانوں کی آمد و اخراج کا ریکارڈ دیکھیں اور دوبارہ مدعو کریں',
+  },
+  emp_guest_name: {
+    en: 'Guest Name',
+    ur: 'مہمان کا نام',
+  },
+  emp_guest_phone: {
+    en: 'Guest Phone Number',
+    ur: 'مہمان کا فون نمبر',
+  },
+  emp_guest_card_no: {
+    en: 'Visitor Card Number',
+    ur: 'وزیٹر کارڈ نمبر',
+  },
+  emp_guest_cnic_optional: {
+    en: 'CNIC Number (Optional)',
+    ur: 'شناختی کارڈ نمبر (اختیاری)',
+  },
+  emp_guest_photo_optional: {
+    en: 'Guest Photo (Optional)',
+    ur: 'مہمان کی تصویر (اختیاری)',
+  },
+  emp_visit_date: {
+    en: 'Visit Date',
+    ur: 'ملاقات کی تاریخ',
+  },
+  emp_expected_arrival: {
+    en: 'Expected Arrival Time',
+    ur: 'متوقع آمد کا وقت',
+  },
+  emp_expected_window: {
+    en: 'Expected Visit Duration / Window',
+    ur: 'ملاقات کا متوقع دورانیہ / وقت',
+  },
+  emp_create_invitation_btn: {
+    en: 'Send Guest Invitation to Gates',
+    ur: 'مہمان کا دعوت نامہ تمام گیٹس کو بھیجیں',
+  },
+  emp_reinvite_btn: {
+    en: 'Re-invite',
+    ur: 'دوبارہ مدعو کریں',
+  },
+  emp_arrival_notifications: {
+    en: 'Guest Arrival Notifications',
+    ur: 'مہمانوں کی آمد کی اطلاعات',
+  },
+
+  // ── Operator Shared Upcoming Guests ──
+  upcoming_guests_title: {
+    en: 'Upcoming Invited Guests',
+    ur: 'مدعو کردہ متوقع مہمان',
+  },
+  upcoming_guests_subtitle: {
+    en: 'Shared across all gates — check in invited guests upon arrival',
+    ur: 'تمام گیٹس کے لیے مشترکہ فہرست — مہمان کی آمد پر چیک اِن کریں',
+  },
+  upcoming_guests_btn: {
+    en: 'Upcoming Guests',
+    ur: 'متوقع مہمان',
+  },
+  upcoming_guests_empty: {
+    en: 'No pending guest invitations right now.',
+    ur: 'اس وقت کوئی متوقع مہمان زیرِ التواء نہیں ہے۔',
+  },
+  invited_by_host: {
+    en: 'Invited By (Host)',
+    ur: 'میزبان (مدعو کرنے والا)',
+  },
+  expected_schedule: {
+    en: 'Expected Date & Window',
+    ur: 'متوقع تاریخ اور وقت',
+  },
+  preassigned_card: {
+    en: 'Preassigned Visitor Card',
+    ur: 'پہلے سے مختص وزیٹر کارڈ',
+  },
+  verify_and_checkin_btn: {
+    en: 'Verify & Check In Guest',
+    ur: 'تصدیق اور چیک اِن کریں',
+  },
+  confirm_guest_checkin_title: {
+    en: 'Confirm Invited Guest Check-In',
+    ur: 'مدعو مہمان کے چیک اِن کی تصدیق کریں',
+  },
+  new_guest_invitation_alert: {
+    en: 'New Upcoming Guest Invitation Received!',
+    ur: 'نئے متوقع مہمان کا دعوت نامہ موصول ہوا ہے!',
+  },
 };
 
 const LanguageContext = createContext<LanguageContextType>({

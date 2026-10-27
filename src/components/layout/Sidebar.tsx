@@ -43,6 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Contractors', href: '/contractors', icon: HardHat },
   { label: 'Deliveries', href: '/deliveries', icon: Truck },
   { label: 'Departments', href: '/departments', icon: Building2, adminOnly: true },
+  { label: 'Employees', href: '/employees', icon: Users, adminOnly: true },
   { label: 'Reports & Analytics', href: '/reports', icon: FileBarChart, adminOnly: true },
   { label: 'Audit Logs', href: '/audit-logs', icon: ShieldCheck, adminOnly: true },
   { label: 'Manage Access', href: '/access', icon: UserCog, adminOnly: true },
@@ -59,6 +60,48 @@ export default function Sidebar() {
     toggleDesktopSidebar,
   } = useLayout();
 
+  const [pendingEmployeeCount, setPendingEmployeeCount] = React.useState<number>(0);
+  const badgeReqInFlightRef = React.useRef(false);
+
+  const fetchPendingEmployeeCount = React.useCallback(async () => {
+    if (user?.role !== 'ADMIN' || badgeReqInFlightRef.current) return;
+    badgeReqInFlightRef.current = true;
+    try {
+      const res = await fetch('/api/admin/employees?summaryOnly=true', {
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data.pendingCount === 'number') {
+          setPendingEmployeeCount(data.pendingCount);
+        }
+      }
+    } catch {
+      // Ignore transient errors
+    } finally {
+      badgeReqInFlightRef.current = false;
+    }
+  }, [user?.role]);
+
+  React.useEffect(() => {
+    if (user?.role !== 'ADMIN') return;
+    const initTimer = setTimeout(() => {
+      void fetchPendingEmployeeCount();
+    }, 0);
+    const interval = setInterval(() => {
+      void fetchPendingEmployeeCount();
+    }, 6000);
+    const handleImmediateRefresh = () => {
+      void fetchPendingEmployeeCount();
+    };
+    window.addEventListener('gk:refresh-employee-badge', handleImmediateRefresh);
+    return () => {
+      clearTimeout(initTimer);
+      clearInterval(interval);
+      window.removeEventListener('gk:refresh-employee-badge', handleImmediateRefresh);
+    };
+  }, [user?.role, fetchPendingEmployeeCount]);
+
   const renderNavLinks = (isCollapsed: boolean, onLinkClick?: () => void) => {
     return (
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
@@ -73,6 +116,7 @@ export default function Sidebar() {
 
           const isActive = pathname === item.href;
           const Icon = item.icon;
+          const showPendingBadge = item.href === '/employees' && pendingEmployeeCount > 0;
 
           return (
             <Link
@@ -80,7 +124,7 @@ export default function Sidebar() {
               href={item.href}
               onClick={onLinkClick}
               title={isCollapsed ? item.label : undefined}
-              className={`flex items-center rounded-xl text-sm font-medium transition-all group ${
+              className={`relative flex items-center rounded-xl text-sm font-medium transition-all group ${
                 isCollapsed
                   ? 'justify-center p-2.5 my-1'
                   : 'justify-between px-3 py-2'
@@ -100,7 +144,29 @@ export default function Sidebar() {
                 />
                 {!isCollapsed && <span className="truncate">{item.label}</span>}
               </div>
-              {!isCollapsed && isActive && <ChevronRight className="w-4 h-4 opacity-70 shrink-0" />}
+
+              {!isCollapsed && (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {showPendingBadge && (
+                    <span
+                      className={`min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-extrabold flex items-center justify-center ${
+                        isActive
+                          ? 'bg-white text-blue-700'
+                          : 'bg-amber-500 text-slate-950 shadow-2xs'
+                      }`}
+                    >
+                      {pendingEmployeeCount}
+                    </span>
+                  )}
+                  {isActive && <ChevronRight className="w-4 h-4 opacity-70 shrink-0" />}
+                </div>
+              )}
+
+              {isCollapsed && showPendingBadge && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-slate-950 text-[9px] font-extrabold flex items-center justify-center">
+                  {pendingEmployeeCount}
+                </span>
+              )}
             </Link>
           );
         })}

@@ -15,8 +15,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+    const roleCheck = await prisma.$queryRaw<
+      Array<{ id: string; role: string; active: boolean }>
+    >`
+      SELECT "id", "role"::text AS "role", "active"
+      FROM "users"
+      WHERE "email" = ${normalizedEmail}
+      LIMIT 1
+    `;
+
+    if (roleCheck.length === 0) {
+      return NextResponse.json(
+        { error: 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
+
+    if (roleCheck[0].role === 'EMPLOYEE') {
+      return NextResponse.json(
+        {
+          error:
+            'Employee accounts cannot sign in to the Admin/Operator portal. Please use the Employee Portal (/employee).',
+        },
+        { status: 403 }
+      );
+    }
+
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: { email: normalizedEmail },
       include: {
         gateAccess: {
           select: { gateId: true },
@@ -52,7 +79,7 @@ export async function POST(request: NextRequest) {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
+      role: user.role as 'ADMIN' | 'OPERATOR',
       gateIds,
     });
 

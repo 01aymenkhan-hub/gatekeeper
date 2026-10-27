@@ -10,6 +10,20 @@ datasource db {
 enum Role {
   ADMIN
   OPERATOR
+  EMPLOYEE
+}
+
+enum EmployeeApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum InvitationStatus {
+  PENDING
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
 }
 
 enum GateType {
@@ -34,24 +48,35 @@ enum VisitStatus {
 }
 
 model User {
-  id           String           @id @default(cuid())
-  email        String           @unique
-  passwordHash String
-  name         String
-  role         Role             @default(OPERATOR)
-  active           Boolean          @default(true)
-  operatorNumber   String?          @unique
-  qrLoginHash      String?          @unique
+  id               String                 @id @default(cuid())
+  email            String                 @unique
+  passwordHash     String
+  name             String
+  role             Role                   @default(OPERATOR)
+  active           Boolean                @default(true)
+  approvalStatus   EmployeeApprovalStatus @default(APPROVED)
+  departmentId     String?
+  departmentName   String?
+  position         String?
+  phoneNumber      String?
+  approvedAt       DateTime?
+  approvedById     String?
+  rejectedAt       DateTime?
+  rejectionReason  String?
+  operatorNumber   String?                @unique
+  qrLoginHash      String?                @unique
   qrLoginEncrypted String?
   qrLoginCreatedAt DateTime?
   qrLoginRevokedAt DateTime?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
   gateAccess       UserGateAccess[]
-  checkIns         Visit[]          @relation("CheckedInBy")
-  checkOuts        Visit[]          @relation("CheckedOutBy")
+  checkIns         Visit[]                @relation("CheckedInBy")
+  checkOuts        Visit[]                @relation("CheckedOutBy")
   auditLogs        AuditLog[]
+  invitations      GuestInvitation[]      @relation("EmployeeInvitations")
 
+  @@index([role, approvalStatus])
   @@map("users")
 }
 
@@ -202,3 +227,77 @@ model SystemSetting {
 
   @@map("system_settings")
 }
+
+model GuestInvitation {
+  id                     String           @id @default(cuid())
+  employeeId             String
+  employee               User             @relation("EmployeeInvitations", fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeName           String
+  departmentId           String?
+  departmentName         String
+  guestName              String
+  guestPhone             String
+  guestCnic              String?
+  guestPhotoUrl          String?
+  visitorCardNo          String
+  normalizedCardKey      String
+  visitDate              String
+  expectedArrivalTime    String
+  expectedDurationWindow String
+  status                 InvitationStatus @default(PENDING)
+  idempotencyKey         String?          @unique
+  visitId                String?          @unique
+  actualCheckInTime      DateTime?
+  actualCheckOutTime     DateTime?
+  entryGateId            String?
+  entryGateName          String?
+  checkedInById          String?
+  checkedInByName        String?
+  reinvitedFromId        String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  @@index([employeeId, createdAt])
+  @@index([status, visitDate])
+  @@index([normalizedCardKey, status])
+  @@map("guest_invitations")
+}
+
+model AppNotification {
+  id              String   @id @default(cuid())
+  recipientUserId String?
+  recipientRole   String?
+  type            String
+  title           String
+  message         String
+  invitationId    String?
+  visitId         String?
+  dedupeKey       String?  @unique
+  isRead          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([recipientUserId, isRead, createdAt])
+  @@index([recipientRole, createdAt])
+  @@map("app_notifications")
+}
+
+model EmailOutbox {
+  id             String    @id @default(cuid())
+  eventType      String
+  recipientEmail String
+  subject        String
+  entityId       String
+  dedupeKey      String    @unique
+  status         String    @default("PENDING")
+  smtpMessageId  String?
+  errorMessage   String?
+  attempts       Int       @default(0)
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([entityId, eventType])
+  @@index([status])
+  @@map("email_outbox")
+}
+

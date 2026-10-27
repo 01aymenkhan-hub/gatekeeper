@@ -69,15 +69,35 @@ async function ensureInitialDepartmentsSeeded() {
 
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const activeOnly = searchParams.get('activeOnly') === 'true';
+
     const user = await getSessionUser();
-    if (!user) {
+    if (!user && !activeOnly) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await ensureInitialDepartmentsSeeded();
 
-    const { searchParams } = new URL(request.url);
-    const activeOnly = searchParams.get('activeOnly') === 'true';
+    if (!user && activeOnly) {
+      const publicRows = await prisma.$queryRaw<
+        Array<{ id: string; name: string; normalizedName: string; active: boolean }>
+      >`
+        SELECT
+          d."id",
+          d."name",
+          d."normalizedName",
+          d."active"
+        FROM "departments" d
+        WHERE d."active" = true
+        ORDER BY d."name" ASC
+      `;
+
+      return NextResponse.json({
+        success: true,
+        departments: publicRows,
+      });
+    }
 
     const rows = activeOnly
       ? await prisma.$queryRaw<DepartmentRecord[]>`

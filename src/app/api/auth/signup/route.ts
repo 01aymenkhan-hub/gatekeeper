@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       id: newUser.id,
       email: newUser.email,
       name: newUser.name,
-      role: newUser.role,
+      role: newUser.role as 'ADMIN' | 'OPERATOR',
       gateIds: [],
     });
 

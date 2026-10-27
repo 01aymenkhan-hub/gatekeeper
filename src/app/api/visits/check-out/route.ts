@@ -89,11 +89,12 @@ export async function POST(request: NextRequest) {
         throw alreadyOutErr;
       }
 
-      return tx.visit.update({
+      const checkOutDate = new Date();
+      const checkedOutVisit = await tx.visit.update({
         where: { id: targetVisit.id },
         data: {
           status: 'CHECKED_OUT',
-          checkOutTime: new Date(),
+          checkOutTime: checkOutDate,
           exitGateId: resolvedExitGateId,
           checkedOutById: user.id,
           notes: notes
@@ -110,6 +111,16 @@ export async function POST(request: NextRequest) {
           checkedOutBy: { select: { id: true, name: true } },
         },
       });
+
+      await tx.$executeRaw`
+        UPDATE "guest_invitations"
+        SET "status" = 'CHECKED_OUT'::"InvitationStatus",
+            "actualCheckOutTime" = ${checkOutDate},
+            "updatedAt" = NOW()
+        WHERE "visitId" = ${checkedOutVisit.id}
+      `;
+
+      return checkedOutVisit;
     });
 
     await logAudit({
