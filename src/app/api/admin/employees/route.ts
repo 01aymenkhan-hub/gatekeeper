@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import prisma from '@/lib/prisma';
-import { getSessionUser, getEmployeeSessionUser, EmployeeApprovalStatus } from '@/lib/auth';
+import {
+  getSessionUser,
+  getEmployeeSessionUser,
+  hashPassword,
+  EmployeeApprovalStatus,
+} from '@/lib/auth';
+import { logAudit } from '@/lib/audit';
+import { sendEmployeeApprovedEmail } from '@/lib/emailService';
 
 export interface AdminEmployeeRow {
   id: string;
@@ -106,6 +114,269 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching admin employees:', error);
     return NextResponse.json(
       { error: 'Failed to load employee records.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getSessionUser();
+    if (!user) {
+      const empUser = await getEmployeeSessionUser();
+      if (empUser) {
+        return NextResponse.json(
+          { error: 'Forbidden: Employees cannot create employee accounts.' },
+          { status: 403 }
+        );
+      }
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Forbidden: Only administrators can create employee accounts.' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const rawName =
+      typeof body.fullName === 'string' && body.fullName.trim()
+        ? body.fullName.trim()
+        : typeof body.name === 'string' && body.name.trim()
+        ? body.name.trim()
+        : '';
+    const fullName = rawName.replace(/\s+/g, ' ');
+    const departmentId =
+      typeof body.departmentId === 'string' ? body.departmentId.trim() : '';
+    const departmentNameInput =
+      typeof body.department === 'string' ? body.department.trim() : '';
+    const position =
+      typeof body.position === 'string'
+        ? body.position.trim().replace(/\s+/g, ' ')
+        : '';
+    const rawPhone =
+      typeof body.phoneNumber === 'string' ? body.phoneNumber.trim() : '';
+    const rawEmail =
+      typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    const confirmPassword =
+      typeof body.confirmPassword === 'string' ? body.confirmPassword : password;
+
+    if (!fullName) {
+      return NextResponse.json(
+        { error: 'Employee Full Name is required.' },
+        { status: 400 }
+      );
+    }
+
+    if (!departmentId && !departmentNameInput) {
+      return NextResponse.json(
+        { error: 'Department is required.' },
+        { status: 400 }
+      );
+    }
+
+    if (!position) {
+      return NextResponse.json(
+        { error: 'Position / Designation is required.' },
+        { status: 400 }
+      );
+    }
+
+    const cleanedPhone = rawPhone ? rawPhone.replace(/[\s\-()]/g, '') : '';
+    if (!cleanedPhone || cleanedPhone.length < 10 || cleanedPhone.length > 15) {
+      return NextResponse.json(
+        { error: 'Please enter a valid Phone Number (e.g., 03001234567).' },
+        { status: 400 }
+      );
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!rawEmail || !emailRegex.test(rawEmail)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid Email Address.' },
+        { status: 400 }
+      );
+    }
+
+    if (!password || password.length < 6) {
+      return NextResponse.json(
+        { error: 'Password must be at least 6 characters long.' },
+        { status: 400 }
+      );
+    }
+
+    if (password !== confirmPassword) {
+      return NextResponse.json(
+        { error: 'Password and Confirm Password do not match.' },
+        { status: 400 }
+      );
+    }
+
+    // Resolve department from existing departments table
+    let resolvedDeptId: string | null = null;
+    let resolvedDeptName = '';
+
+    if (departmentId) {
+      const deptRows = await prisma.$queryRaw<
+        Array<{ id: string; name: string; active: boolean }>
+      >`
+        SELECT "id", "name", "active"
+        FROM "departments"
+        WHERE "id" = ${departmentId}
+        LIMIT 1
+      `;
+      if (deptRows.length > 0) {
+        resolvedDeptId = deptRows[0].id;
+        resolvedDeptName = deptRows[0].name;
+      }
+    }
+
+    if (!resolvedDeptName && departmentNameInput) {
+      const normalized = departmentNameInput.toLowerCase().replace(/\s+/g, ' ');
+      const deptRows = await prisma.$queryRaw<
+        Array<{ id: string; name: string; active: boolean }>
+      >`
+        SELECT "id", "name", "active"
+        FROM "departments"
+        WHERE "normalizedName" = ${normalized}
+        LIMIT 1
+      `;
+      if (deptRows.length > 0) {
+        resolvedDeptId = deptRows[0].id;
+        resolvedDeptName = deptRows[0].name;
+      }
+    }
+
+    if (!resolvedDeptName) {
+      return NextResponse.json(
+        { error: 'Please select a valid department.' },
+        { status: 400 }
+      );
+    }
+
+    // Check duplicate email in users table
+    const existingUsers = await prisma.$queryRaw<Array<{ id: string; email: string }>>`
+      SELECT "id", "email"
+      FROM "users"
+      WHERE LOWER("email") = ${rawEmail}
+      LIMIT 1
+    `;
+
+    if (existingUsers.length > 0) {
+      return NextResponse.json(
+        {
+          error: 'An account with this email address already exists.',
+          code: 'DUPLICATE_EMAIL',
+        },
+        { status: 409 }
+      );
+    }
+
+    const passwordHash = await hashPassword(password);
+    const newId = `emp_${crypto.randomBytes(12).toString('hex')}`;
+    const now = new Date();
+
+    // Admin-created employee is immediately active and APPROVED (never placed in pending queue)
+    await prisma.$executeRaw`
+      INSERT INTO "users" (
+        "id",
+        "email",
+        "passwordHash",
+        "name",
+        "role",
+        "active",
+        "approvalStatus",
+        "departmentId",
+        "departmentName",
+        "position",
+        "phoneNumber",
+        "approvedAt",
+        "approvedById",
+        "createdAt",
+        "updatedAt"
+      )
+      VALUES (
+        ${newId},
+        ${rawEmail},
+        ${passwordHash},
+        ${fullName},
+        'EMPLOYEE'::"Role",
+        true,
+        'APPROVED'::"EmployeeApprovalStatus",
+        ${resolvedDeptId},
+        ${resolvedDeptName},
+        ${position},
+        ${cleanedPhone},
+        ${now},
+        ${user.id},
+        ${now},
+        ${now}
+      )
+    `;
+
+    await logAudit({
+      action: 'CREATE_EMPLOYEE_BY_ADMIN',
+      entityType: 'User',
+      entityId: newId,
+      details: {
+        name: fullName,
+        email: rawEmail,
+        departmentId: resolvedDeptId,
+        departmentName: resolvedDeptName,
+        position,
+        phoneNumber: cleanedPhone,
+        role: 'EMPLOYEE',
+        approvalStatus: 'APPROVED',
+        active: true,
+      },
+      performedById: user.id,
+    });
+
+    // Send account approved/welcome email (never contains plaintext password)
+    const emailResult = await sendEmployeeApprovedEmail({
+      id: newId,
+      name: fullName,
+      email: rawEmail,
+      departmentName: resolvedDeptName,
+      position,
+      approvedAt: now,
+    });
+
+    const createdEmployee: AdminEmployeeRow = {
+      id: newId,
+      name: fullName,
+      email: rawEmail,
+      departmentId: resolvedDeptId,
+      departmentName: resolvedDeptName,
+      position,
+      phoneNumber: cleanedPhone,
+      approvalStatus: 'APPROVED',
+      active: true,
+      approvedAt: now,
+      approvedById: user.id,
+      rejectedAt: null,
+      rejectionReason: null,
+      createdAt: now,
+      updatedAt: now,
+      totalInvitations: 0,
+    };
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: `Employee account created and activated for ${fullName}.`,
+        employee: createdEmployee,
+        emailDispatch: emailResult,
+      },
+      { status: 201 }
+    );
+  } catch (error: unknown) {
+    console.error('Error creating employee by admin:', error);
+    return NextResponse.json(
+      { error: 'Failed to create employee account.' },
       { status: 500 }
     );
   }

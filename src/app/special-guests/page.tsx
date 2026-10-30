@@ -4,8 +4,8 @@ export default function SpecialGuestsPage() {
   return (
     <VisitorCategoryView
       category="SPECIAL_GUEST"
-      title="Special Guests & VIPs"
-      description="Registry of dignitaries, executive visitors, and corporate delegations"
+      title="Invited Guests"
+      description="Registry of employee-invited guests and corporate visitors"
       icon="Award"
     />
   );

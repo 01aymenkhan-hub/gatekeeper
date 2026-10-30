@@ -141,24 +141,71 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve Gate: either provided or first active gate
-    let resolvedGateId = entryGateId;
-    if (!resolvedGateId) {
-      const defaultGate = await prisma.gate.findFirst({
-        where: { active: true },
-        orderBy: { createdAt: 'asc' },
+    // Resolve and enforce Gate authorization from server-side session & UserGateAccess
+    let resolvedGateId: string | null =
+      typeof entryGateId === 'string' && entryGateId.trim() ? entryGateId.trim() : null;
+
+    if (user.role === 'OPERATOR') {
+      const operatorGateAccess = await prisma.userGateAccess.findMany({
+        where: { userId: user.id },
+        include: { gate: true },
       });
-      if (defaultGate) {
-        resolvedGateId = defaultGate.id;
-      } else {
-        const newGate = await prisma.gate.create({
-          data: {
-            name: 'Main Gate - Entry & Exit',
-            type: 'BOTH',
-            active: true,
+      const assignedActiveGates = operatorGateAccess
+        .map((ga) => ga.gate)
+        .filter((g): g is NonNullable<typeof g> => Boolean(g && g.active));
+
+      if (assignedActiveGates.length === 0) {
+        return NextResponse.json(
+          {
+            error:
+              'No gate is assigned to your Operator account. Please contact an Administrator to assign a gate before checking in visitors.',
+            code: 'NO_GATE_ASSIGNED',
           },
+          { status: 403 }
+        );
+      }
+
+      if (resolvedGateId) {
+        const isAssigned = assignedActiveGates.some((g) => g.id === resolvedGateId);
+        if (!isAssigned) {
+          return NextResponse.json(
+            {
+              error: 'You are not authorized to check in visitors at the selected gate.',
+              code: 'UNAUTHORIZED_GATE',
+            },
+            { status: 403 }
+          );
+        }
+      } else {
+        resolvedGateId = assignedActiveGates[0].id;
+      }
+    } else {
+      // ADMIN: validate requested gate if provided, otherwise fall back to first active gate
+      if (resolvedGateId) {
+        const dbGate = await prisma.gate.findFirst({
+          where: { id: resolvedGateId, active: true },
         });
-        resolvedGateId = newGate.id;
+        if (!dbGate) {
+          resolvedGateId = null;
+        }
+      }
+      if (!resolvedGateId) {
+        const defaultGate = await prisma.gate.findFirst({
+          where: { active: true },
+          orderBy: { createdAt: 'asc' },
+        });
+        if (defaultGate) {
+          resolvedGateId = defaultGate.id;
+        } else {
+          const newGate = await prisma.gate.create({
+            data: {
+              name: 'Main Gate - Entry & Exit',
+              type: 'BOTH',
+              active: true,
+            },
+          });
+          resolvedGateId = newGate.id;
+        }
       }
     }
 
@@ -203,6 +250,7 @@ export async function POST(request: NextRequest) {
         SELECT "id"
         FROM "guest_invitations"
         WHERE "status"::text = 'PENDING'
+          AND "normalizedCardKey" IS NOT NULL
           AND "normalizedCardKey" = ${cardComparisonKey}
         LIMIT 1
       `;

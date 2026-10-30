@@ -100,8 +100,8 @@ export function normalizeDate(text: string): string {
 export function normalizeCnic(text: string): string {
   if (!text) return "";
 
-  // Standard pattern with hyphens/spaces
-  const match = text.match(/\b(\d{5})[-\s]?(\d{7})[-\s]?(\d{1})\b/);
+  // Standard pattern with hyphens/spaces/dots (even if adjacent to label text)
+  const match = text.match(/(?<!\d)(\d{5})[-.\s–—_]*(\d{7})[-.\s–—_]*(\d{1})(?!\d)/);
   if (match) {
     return `${match[1]}-${match[2]}-${match[3]}`;
   }
@@ -199,6 +199,13 @@ export function parseCnicOcr(items: OcrDetailItem[]): CnicData {
       parsed.cnicNumber = cnic;
       consumed.add(i);
       break;
+    }
+  }
+  if (!parsed.cnicNumber && boxes.length > 0) {
+    const combinedText = boxes.map((b) => b.text).join(" ");
+    const combinedCnic = normalizeCnic(combinedText);
+    if (combinedCnic) {
+      parsed.cnicNumber = combinedCnic;
     }
   }
 

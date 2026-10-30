@@ -70,9 +70,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve exit gate
-    let resolvedExitGateId = exitGateId;
-    if (!resolvedExitGateId) {
+    // Resolve and validate exit gate
+    let resolvedExitGateId: string | null =
+      typeof exitGateId === 'string' && exitGateId.trim() ? exitGateId.trim() : null;
+
+    if (user.role === 'OPERATOR') {
+      const operatorGateAccess = await prisma.userGateAccess.findMany({
+        where: { userId: user.id },
+        include: { gate: true },
+      });
+      const assignedActiveGates = operatorGateAccess
+        .map((ga) => ga.gate)
+        .filter((g): g is NonNullable<typeof g> => Boolean(g && g.active));
+
+      if (resolvedExitGateId) {
+        const isAssigned = assignedActiveGates.some((g) => g.id === resolvedExitGateId);
+        if (!isAssigned) {
+          return NextResponse.json(
+            {
+              error: 'You are not authorized to check out visitors at the selected gate.',
+              code: 'UNAUTHORIZED_GATE',
+            },
+            { status: 403 }
+          );
+        }
+      } else if (assignedActiveGates.length > 0) {
+        resolvedExitGateId = assignedActiveGates[0].id;
+      } else {
+        resolvedExitGateId = targetVisit.entryGateId;
+      }
+    } else if (!resolvedExitGateId) {
       resolvedExitGateId = targetVisit.entryGateId;
     }
 

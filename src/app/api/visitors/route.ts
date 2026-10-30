@@ -34,7 +34,27 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    if (gateId && gateId !== 'ALL') {
+    if (user.role === 'OPERATOR') {
+      const operatorGateAccess = await prisma.userGateAccess.findMany({
+        where: { userId: user.id },
+        include: { gate: true },
+      });
+      const assignedGateIds = operatorGateAccess
+        .filter((ga) => ga.gate && ga.gate.active)
+        .map((ga) => ga.gateId);
+
+      if (gateId && gateId !== 'ALL') {
+        if (!assignedGateIds.includes(gateId)) {
+          return NextResponse.json(
+            { error: 'You are not authorized to access visitor records for the selected gate.' },
+            { status: 403 }
+          );
+        }
+        where.entryGateId = gateId;
+      } else {
+        where.entryGateId = { in: assignedGateIds };
+      }
+    } else if (gateId && gateId !== 'ALL') {
       where.entryGateId = gateId;
     }
 

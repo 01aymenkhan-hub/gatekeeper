@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { generateToken, TOKEN_COOKIE_NAME } from '@/lib/auth';
+import { generateToken, TOKEN_COOKIE_NAME, OPERATOR_STATUS_COOKIE_NAME } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import {
   cleanOperatorQrToken,
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     if (!token.startsWith('GKOP_')) {
       return NextResponse.json(
-        { error: 'Invalid QR code. Please scan a valid Gatekeeper Operator Card.' },
+        { error: 'Invalid QR code. Please scan a valid GateShield Operator Card.' },
         { status: 400 }
       );
     }
@@ -55,19 +55,45 @@ export async function POST(request: NextRequest) {
     // Compute cryptographic SHA-256 hash to find the operator
     const tokenHash = hashOperatorQrToken(token);
 
-    const user = await prisma.user.findFirst({
-      where: { qrLoginHash: tokenHash },
-      include: {
-        gateAccess: {
-          select: { gateId: true },
-        },
-      },
-    });
+    const userRows = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+        active: boolean;
+        operatorNumber: string | null;
+        qrLoginRevokedAt: Date | null;
+        approvalStatus: string;
+      }>
+    >`
+      SELECT
+        "id",
+        "email",
+        "name",
+        "role"::text AS "role",
+        "active",
+        "operatorNumber",
+        "qrLoginRevokedAt",
+        COALESCE("approvalStatus"::text, 'APPROVED') AS "approvalStatus"
+      FROM "users"
+      WHERE "qrLoginHash" = ${tokenHash}
+      LIMIT 1
+    `;
 
-    if (!user) {
+    if (userRows.length === 0) {
       return NextResponse.json(
         { error: 'Unrecognized operator QR code. Please contact your administrator.' },
         { status: 401 }
+      );
+    }
+
+    const user = userRows[0];
+
+    if (user.approvalStatus !== 'APPROVED') {
+      return NextResponse.json(
+        { error: 'Operator account is not approved. Please contact an administrator.' },
+        { status: 403 }
       );
     }
 
@@ -90,7 +116,12 @@ export async function POST(request: NextRequest) {
     // Reset rate limiter on successful authentication
     resetQrLoginRateLimit(ip);
 
-    const gateIds = user.gateAccess.map((ga: { gateId: string }) => ga.gateId);
+    const gateAccess = await prisma.userGateAccess.findMany({
+      where: { userId: user.id },
+      select: { gateId: true },
+    });
+
+    const gateIds = gateAccess.map((ga) => ga.gateId);
 
     const sessionToken = generateToken({
       id: user.id,
@@ -120,6 +151,7 @@ export async function POST(request: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
+    response.cookies.delete(OPERATOR_STATUS_COOKIE_NAME);
 
     await logAudit({
       action: 'OPERATOR_QR_LOGIN',

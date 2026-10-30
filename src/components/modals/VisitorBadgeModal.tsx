@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Printer, X, User, QrCode } from 'lucide-react';
+import { Printer, X, User, QrCode } from 'lucide-react';
 import { generateQrDataUrl } from '@/lib/qrUtils';
+import GateShieldLogo from '@/components/ui/GateShieldLogo';
 
 interface VisitorBadgeModalProps {
   isOpen: boolean;
@@ -66,7 +67,7 @@ export default function VisitorBadgeModal({
         {/* Modal Controls (No print) */}
         <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between no-print bg-slate-50 dark:bg-slate-900 shrink-0">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <GateShieldLogo variant="icon" size="xs" />
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
               Visitor Security Badge
             </span>
@@ -95,12 +96,10 @@ export default function VisitorBadgeModal({
             {/* Badge Top Header */}
             <div className="border-b-2 border-slate-900 pb-3 flex items-center justify-between">
               <div className="flex items-center gap-2 text-left">
-                <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white shrink-0">
-                  <Shield className="w-4 h-4" />
-                </div>
+                <GateShieldLogo variant="icon" size="sm" forceTheme="light" />
                 <div className="leading-tight">
-                  <span className="font-black text-sm tracking-wider uppercase block text-slate-900">
-                    GATE KEEPER
+                  <span className="font-black text-sm tracking-tight block text-[#2E4482]">
+                    GateShield
                   </span>
                   <span className="text-[9px] font-bold text-slate-500 tracking-widest uppercase">
                     SECURITY ACCESS PASS

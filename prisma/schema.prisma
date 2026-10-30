@@ -47,6 +47,24 @@ enum VisitStatus {
   OVERSTAY
 }
 
+enum ParcelSource {
+  EXPECTED
+  UNEXPECTED
+}
+
+enum ParcelStatus {
+  EXPECTED
+  RECEIVED
+  DELIVERED
+}
+
+enum VipVisitStatus {
+  UPCOMING
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
 model User {
   id               String                 @id @default(cuid())
   email            String                 @unique
@@ -239,11 +257,12 @@ model GuestInvitation {
   guestPhone             String
   guestCnic              String?
   guestPhotoUrl          String?
-  visitorCardNo          String
-  normalizedCardKey      String
+  alongWith              String?
+  visitorCardNo          String?
+  normalizedCardKey      String?
   visitDate              String
   expectedArrivalTime    String
-  expectedDurationWindow String
+  expectedDurationWindow String?
   status                 InvitationStatus @default(PENDING)
   idempotencyKey         String?          @unique
   visitId                String?          @unique
@@ -272,6 +291,10 @@ model AppNotification {
   message         String
   invitationId    String?
   visitId         String?
+  parcelId        String?
+  vipGuestId      String?
+  operatorUserId  String?
+  targetUrl       String?
   dedupeKey       String?  @unique
   isRead          Boolean  @default(false)
   createdAt       DateTime @default(now())
@@ -279,6 +302,74 @@ model AppNotification {
   @@index([recipientUserId, isRead, createdAt])
   @@index([recipientRole, createdAt])
   @@map("app_notifications")
+}
+
+model Parcel {
+  id                  String       @id @default(cuid())
+  parcelNumber        String       @unique
+  source              ParcelSource @default(EXPECTED)
+  status              ParcelStatus @default(EXPECTED)
+  employeeId          String?
+  ownerName           String
+  ownerPhone          String
+  departmentId        String?
+  departmentName      String
+  senderPlatform      String?
+  expectedArrivalDate String?
+  photoUrl            String?
+  receivingGateId     String?
+  receivingGateName   String?
+  receivedAt          DateTime?
+  receivedById        String?
+  receivedByName      String?
+  deliveryGateId      String?
+  deliveryGateName    String?
+  deliveredAt         DateTime?
+  deliveredById       String?
+  deliveredByName     String?
+  notes               String?
+  idempotencyKey      String?      @unique
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([employeeId, createdAt])
+  @@index([status, createdAt])
+  @@index([source, status])
+  @@index([departmentId])
+  @@map("parcels")
+}
+
+model VipGuest {
+  id                 String         @id @default(cuid())
+  vipName            String
+  phoneNumber        String
+  designation        String
+  vehicleNumber      String
+  plannedArrivalTime String
+  cnicNumber         String?
+  photoUrl           String?
+  notes              String?
+  status             VipVisitStatus @default(UPCOMING)
+  active             Boolean        @default(true)
+  actualCheckInTime  DateTime?
+  checkInGateId      String?
+  checkInGateName    String?
+  checkedInById      String?
+  checkedInByName    String?
+  actualCheckOutTime DateTime?
+  checkOutGateId     String?
+  checkOutGateName   String?
+  checkedOutById     String?
+  checkedOutByName   String?
+  createdById        String?
+  createdByName      String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([status, createdAt])
+  @@index([vehicleNumber])
+  @@index([vipName])
+  @@map("vip_guests")
 }
 
 model EmailOutbox {

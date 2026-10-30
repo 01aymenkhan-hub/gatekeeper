@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   X,
   AlertTriangle,
   Camera,
+  Upload,
   ArrowLeft,
   ArrowRight,
 } from 'lucide-react';
@@ -16,6 +17,7 @@ import DlsForm from '../DlsForm';
 import VisitorStep from '../VisitorStep';
 import VisitorBadgeModal from './VisitorBadgeModal';
 import RegistrationSuccessModal from './RegistrationSuccessModal';
+import UnexpectedParcelModal from './UnexpectedParcelModal';
 import GatekeeperLoader from '../ui/GatekeeperLoader';
 import { CnicData, ScanStatus } from '../../types/cnic';
 import { DlsData, DocumentType } from '../../types/dls';
@@ -91,7 +93,7 @@ export default function CheckInModal({
   const { user, currentGate } = useAuth();
   const { language, t } = useLanguage();
   const isAdmin = user?.role === 'ADMIN';
-  const isUr = !isAdmin && language === 'ur';
+  const isUr = language === 'ur';
 
   // Admin 3-step state (unchanged)
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
@@ -120,6 +122,8 @@ export default function CheckInModal({
   const [visitInfo, setVisitInfo] = useState<VisitInfoData>(EMPTY_VISIT_INFO);
   const [documentType, setDocumentType] = useState<DocumentType>('cnic');
   const [isDocCameraOpen, setIsDocCameraOpen] = useState(false);
+  const [scanErrorReason, setScanErrorReason] = useState<'unreadable' | 'service_error' | null>(null);
+  const operatorFileInputRef = useRef<HTMLInputElement>(null);
 
   // CNIC Form State & Scanned Image State
   const [cnicFormData, setCnicFormData] = useState<CnicData>(EMPTY_CNIC_DATA);
@@ -145,6 +149,7 @@ export default function CheckInModal({
   const [isRetryingImageSave, setIsRetryingImageSave] = useState(false);
   const [showBadge, setShowBadge] = useState(false);
   const [autoPrintBadge, setAutoPrintBadge] = useState(false);
+  const [isUnexpectedParcelOpen, setIsUnexpectedParcelOpen] = useState(false);
 
   const getCnicStatusMessage = (status: ScanStatus): string => {
     switch (status) {
@@ -153,7 +158,9 @@ export default function CheckInModal({
       case 'success':
         return 'CNIC scanned successfully! Fields populated.';
       case 'error':
-        return 'Unable to read CNIC. Ensure Python OCR service is running on port 8000.';
+        return scanErrorReason === 'service_error'
+          ? 'Unable to connect to the OCR service on port 8000. Please verify the backend is running or try again.'
+          : 'Could not extract readable CNIC details from this image. Please try another photo or enter details manually.';
       default:
         return '';
     }
@@ -166,7 +173,9 @@ export default function CheckInModal({
       case 'success':
         return 'Driving License scanned successfully! Fields populated.';
       case 'error':
-        return 'Unable to read Driving License. Ensure Python OCR service is running on port 8000.';
+        return scanErrorReason === 'service_error'
+          ? 'Unable to connect to the OCR service on port 8000. Please verify the backend is running or try again.'
+          : 'Could not extract readable Driving License details from this image. Please try another photo or enter details manually.';
       default:
         return '';
     }
@@ -175,6 +184,7 @@ export default function CheckInModal({
   const handleCnicScan = useCallback(
     async (file: File) => {
       setCnicScanStatus('scanning');
+      setScanErrorReason(null);
       setCnicImageCaptureError(null);
 
       // Compress and retain the scanned CNIC image in parallel with OCR processing
@@ -195,22 +205,73 @@ export default function CheckInModal({
 
         setRawCnicOcrResult(result);
         const rawItems = result.results || result.details || [];
-        const structuredData: CnicData = result.parsed || parseCnicOcr(rawItems);
+        const fallbackParsed = parseCnicOcr(rawItems);
+        const backendParsed: Partial<CnicData> = result.parsed || {};
 
-        structuredData.name = structuredData.name || structuredData.fullName || '';
-        structuredData.fullName = structuredData.name;
-        structuredData.fatherName =
-          structuredData.fatherName || structuredData.fatherHusbandName || '';
-        structuredData.fatherHusbandName = structuredData.fatherName;
-        structuredData.cnic = structuredData.cnic || structuredData.cnicNumber || '';
-        structuredData.cnicNumber = structuredData.cnic;
-        structuredData.cnicIdentification = structuredData.cnicIdentification || '';
+        // Merge backend region parser with frontend label-relative parser so no detected field is lost
+        const mergedName =
+          (backendParsed.name || backendParsed.fullName || fallbackParsed.fullName || fallbackParsed.name || '').trim();
+        const mergedFather =
+          (
+            backendParsed.fatherName ||
+            backendParsed.fatherHusbandName ||
+            fallbackParsed.fatherHusbandName ||
+            fallbackParsed.fatherName ||
+            ''
+          ).trim();
+        const mergedCnic =
+          (backendParsed.cnic || backendParsed.cnicNumber || fallbackParsed.cnicNumber || fallbackParsed.cnic || '').trim();
+        const rawGender = (backendParsed.gender || fallbackParsed.gender || '').trim();
+        let mergedGender: '' | 'Male' | 'Female' =
+          rawGender === 'Male' || rawGender === 'Female' ? rawGender : '';
+        if (!mergedGender && mergedCnic) {
+          const lastDigit = mergedCnic.slice(-1);
+          if (/\d/.test(lastDigit)) {
+            mergedGender = parseInt(lastDigit, 10) % 2 !== 0 ? 'Male' : 'Female';
+          }
+        }
 
+        const structuredData: CnicData = {
+          name: mergedName,
+          fullName: mergedName,
+          fatherName: mergedFather,
+          fatherHusbandName: mergedFather,
+          cnic: mergedCnic,
+          cnicNumber: mergedCnic,
+          gender: mergedGender,
+          countryOfStay:
+            (backendParsed.countryOfStay || fallbackParsed.countryOfStay || 'Pakistan').trim(),
+          dateOfBirth:
+            (backendParsed.dateOfBirth || fallbackParsed.dateOfBirth || '').trim(),
+          dateOfIssue:
+            (backendParsed.dateOfIssue || fallbackParsed.dateOfIssue || '').trim(),
+          dateOfExpiry:
+            (backendParsed.dateOfExpiry || fallbackParsed.dateOfExpiry || '').trim(),
+          cnicIdentification:
+            (backendParsed.cnicIdentification || fallbackParsed.cnicIdentification || '').trim(),
+        };
+
+        // Preserve partial results whenever any valid CNIC field was extracted so operator can review & complete in Step 4
         const hasExtractedData = Boolean(
-          structuredData.cnicNumber?.trim() || structuredData.fullName?.trim()
+          structuredData.cnicNumber ||
+            structuredData.fullName ||
+            structuredData.fatherHusbandName ||
+            structuredData.dateOfBirth ||
+            structuredData.dateOfIssue ||
+            structuredData.dateOfExpiry
         );
 
         if (!isAdmin && !hasExtractedData) {
+          console.warn(
+            '[GateShield OCR] CNIC scan rejected: no usable CNIC fields could be extracted from image.',
+            {
+              fileName: file.name,
+              fileSize: file.size,
+              detectedBoxCount: rawItems.length,
+              rawTexts: (result.text || []).slice(0, 12),
+            }
+          );
+          setScanErrorReason('unreadable');
           setCnicScanStatus('error');
           return;
         }
@@ -221,7 +282,10 @@ export default function CheckInModal({
           playContinueSound();
           setOperatorStep(4);
         }
-      } catch {
+      } catch (err) {
+        console.error('[GateShield OCR] CNIC scan failed with service/runtime error:', err);
+        setScanErrorReason('service_error');
+
         const compressedImg = await compressionPromise;
         if (compressedImg.ok) {
           setCnicScannedImage(compressedImg.dataUrl);
@@ -249,6 +313,7 @@ export default function CheckInModal({
   const handleDlsScan = useCallback(
     async (file: File) => {
       setDlsScanStatus('scanning');
+      setScanErrorReason(null);
       setDlsImageCaptureError(null);
 
       // Compress and retain the scanned DLS image in parallel with OCR processing
@@ -271,10 +336,25 @@ export default function CheckInModal({
         const structuredData: DlsData = result.parsed || EMPTY_DLS_DATA;
 
         const hasExtractedData = Boolean(
-          structuredData.licenseNumber?.trim() || structuredData.fullName?.trim()
+          structuredData.licenseNumber?.trim() ||
+            structuredData.fullName?.trim() ||
+            structuredData.fatherHusbandName?.trim() ||
+            structuredData.dateOfBirth?.trim() ||
+            structuredData.issueDate?.trim() ||
+            structuredData.validUpto?.trim()
         );
 
         if (!isAdmin && !hasExtractedData) {
+          console.warn(
+            '[GateShield OCR] DLS scan rejected: no usable Driving Licence fields could be extracted from image.',
+            {
+              fileName: file.name,
+              fileSize: file.size,
+              detectedBoxCount: (result.results || []).length,
+              rawTexts: (result.text || []).slice(0, 12),
+            }
+          );
+          setScanErrorReason('unreadable');
           setDlsScanStatus('error');
           return;
         }
@@ -285,7 +365,10 @@ export default function CheckInModal({
           playContinueSound();
           setOperatorStep(4);
         }
-      } catch {
+      } catch (err) {
+        console.error('[GateShield OCR] DLS scan failed with service/runtime error:', err);
+        setScanErrorReason('service_error');
+
         const compressedImg = await compressionPromise;
         if (compressedImg.ok) {
           setDlsScannedImage(compressedImg.dataUrl);
@@ -316,6 +399,17 @@ export default function CheckInModal({
     setIsDocCameraOpen(true);
   };
 
+  const handleOperatorUploadSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (documentType === 'cnic') {
+      handleCnicScan(file);
+    } else {
+      handleDlsScan(file);
+    }
+  };
+
   const handleOperatorCameraCapture = (croppedFile: File) => {
     setIsDocCameraOpen(false);
     if (documentType === 'cnic') {
@@ -337,6 +431,18 @@ export default function CheckInModal({
 
   const handleFinalSubmit = async () => {
     if (submissionStatus === 'submitting' || createdVisit) {
+      return;
+    }
+
+    const operatorAssignedGate = currentGate || (!isAdmin ? user?.gates?.[0] || null : null);
+    if (!isAdmin && !operatorAssignedGate) {
+      setSubmissionError(
+        t(
+          'no_gate_assigned_desc',
+          'No gate is assigned to your Operator account. Please contact an Administrator to assign a gate before checking in visitors.'
+        )
+      );
+      setSubmissionStatus('error');
       return;
     }
 
@@ -395,7 +501,7 @@ export default function CheckInModal({
           visitorData.hasBelongings && visitorData.belongings?.trim()
             ? visitorData.belongings.trim()
             : undefined,
-        entryGateId: currentGate?.id,
+        entryGateId: isAdmin ? currentGate?.id : operatorAssignedGate?.id,
       };
 
       const res = await fetch('/api/visits/check-in', {
@@ -550,10 +656,17 @@ export default function CheckInModal({
                     <option value="VISITOR">Visitor</option>
                     <option value="VENDOR">Vendor</option>
                     <option value="INTERVIEW">Interview</option>
-                    <option value="SPECIAL_GUEST">Special Guest</option>
+                    <option value="SPECIAL_GUEST">Guest</option>
                     <option value="CONTRACTOR">Contractor</option>
                     <option value="DELIVERY">Delivery</option>
                   </select>
+                  <button
+                    type="button"
+                    onClick={() => setIsUnexpectedParcelOpen(true)}
+                    className="text-xs font-extrabold px-2.5 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white cursor-pointer"
+                  >
+                    + Register Parcel
+                  </button>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   Gate:{' '}
@@ -584,7 +697,9 @@ export default function CheckInModal({
                 <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {t('gate_prefix', 'Gate')}:{' '}
                   <span className="font-bold text-slate-700 dark:text-slate-300">
-                    {currentGate?.name || 'Main Gate'}
+                    {currentGate?.name ||
+                      user?.gates?.[0]?.name ||
+                      t('no_gate_assigned', 'No Gate Assigned')}
                   </span>
                 </p>
               </div>
@@ -730,7 +845,7 @@ export default function CheckInModal({
           ) : (
             /* ── OPERATOR 6-STEP MOBILE-FIRST REGISTRATION FLOW ── */
             <div className="p-3.5 sm:p-5 overflow-y-auto flex-1 space-y-4">
-              {/* STEP 1: SELECT VISITOR CATEGORY (Auto-advances to Step 2) */}
+              {/* STEP 1: SELECT VISITOR CATEGORY (Auto-advances to Step 2, or opens Unexpected Parcel Registration if Parcel is selected) */}
               {operatorStep === 1 && (
                 <VisitInfoStep
                   operatorMode="category"
@@ -739,6 +854,7 @@ export default function CheckInModal({
                   data={visitInfo}
                   onChange={setVisitInfo}
                   onNext={() => setOperatorStep(2)}
+                  onParcelSelect={() => setIsUnexpectedParcelOpen(true)}
                 />
               )}
 
@@ -770,6 +886,14 @@ export default function CheckInModal({
                     />
                   )}
 
+                  <input
+                    ref={operatorFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleOperatorUploadSelect}
+                  />
+
                   {/* Scan Failed Prominent Error Card */}
                   {activeScanStatus === 'error' && (
                     <div className="rounded-2xl border-2 border-red-300 dark:border-red-800 bg-red-50/90 dark:bg-red-950/40 p-5 sm:p-6 flex flex-col items-center justify-center text-center space-y-3 animate-in zoom-in-95 duration-200">
@@ -781,20 +905,35 @@ export default function CheckInModal({
                           {t('scan_failed_title', 'Scan failed. Please scan again.')}
                         </h3>
                         <p className="text-xs sm:text-sm font-medium text-red-600/90 dark:text-red-300/90">
-                          {t(
-                            'scan_failed_subtitle',
-                            'Hold the card steady in good light inside the frame and try again.'
-                          )}
+                          {scanErrorReason === 'service_error'
+                            ? t(
+                                'scan_service_error_subtitle',
+                                'OCR service is temporarily unreachable. Please retry scanning or upload a card image.'
+                              )
+                            : t(
+                                'scan_failed_subtitle',
+                                'Could not extract readable card details. Hold the card steady inside the frame or upload a clear photo.'
+                              )}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleOperatorStartScan(documentType)}
-                        className="py-3 px-6 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white text-xs sm:text-sm font-extrabold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
-                      >
-                        <Camera className="w-4 h-4" />
-                        <span>{t('scan_again_btn', 'Scan Again')}</span>
-                      </button>
+                      <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleOperatorStartScan(documentType)}
+                          className="py-2.5 px-5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white text-xs sm:text-sm font-extrabold shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                        >
+                          <Camera className="w-4 h-4" />
+                          <span>{t('scan_again_btn', 'Scan Again')}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => operatorFileInputRef.current?.click()}
+                          className="py-2.5 px-5 rounded-xl border border-red-300 dark:border-red-700 bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-slate-800 active:scale-[0.98] text-red-700 dark:text-red-300 text-xs sm:text-sm font-extrabold shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                        >
+                          <Upload className="w-4 h-4" />
+                          <span>{t('upload_id_image_btn', 'Upload Image')}</span>
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -1010,6 +1149,15 @@ export default function CheckInModal({
           onAutoPrintTriggered={() => setAutoPrintBadge(false)}
         />
       )}
+
+      {/* Unexpected Parcel Registration Modal (opened when Operator selects Register -> Parcel) */}
+      <UnexpectedParcelModal
+        isOpen={isUnexpectedParcelOpen}
+        onClose={() => setIsUnexpectedParcelOpen(false)}
+        onSuccess={() => {
+          if (onSuccess) onSuccess();
+        }}
+      />
     </>
   );
 }

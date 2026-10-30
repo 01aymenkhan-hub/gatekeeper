@@ -5,7 +5,7 @@ import {
   Users,
   Briefcase,
   UserCheck,
-  Award,
+  Package,
   HardHat,
   Truck,
   Check,
@@ -34,6 +34,7 @@ interface VisitInfoStepProps {
   onCategoryChange?: (category: string) => void;
   operatorMode?: "category" | "visit-info";
   onBack?: () => void;
+  onParcelSelect?: () => void;
 }
 
 interface DynamicDepartmentOption {
@@ -75,10 +76,10 @@ const CATEGORIES = [
     checkBg: "bg-blue-600 text-white",
   },
   {
-    id: "SPECIAL_GUEST",
-    labelKey: "cat_special_guest",
-    defaultLabel: "Special Guest",
-    icon: Award,
+    id: "PARCEL",
+    labelKey: "cat_parcel",
+    defaultLabel: "Parcel",
+    icon: Package,
     activeBorder: "border-amber-500 dark:border-amber-400",
     activeBg: "bg-amber-50/80 dark:bg-amber-950/50",
     iconBg: "bg-amber-500 text-white",
@@ -126,6 +127,7 @@ export default function VisitInfoStep({
   onCategoryChange,
   operatorMode = "category",
   onBack,
+  onParcelSelect,
 }: VisitInfoStepProps) {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
@@ -380,6 +382,11 @@ export default function VisitInfoStep({
   if (operatorMode === "category") {
     const handleCategorySelect = (catId: string) => {
       if (!catId || isAdvancingRef.current) return;
+      if (catId === "PARCEL" && onParcelSelect) {
+        playSelectSound();
+        onParcelSelect();
+        return;
+      }
       if (onCategoryChange) {
         onCategoryChange(catId);
       }

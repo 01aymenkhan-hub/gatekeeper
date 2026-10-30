@@ -61,24 +61,26 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 2. Check pending guest invitations holding this card
+    // 2. Check legacy pending guest invitations holding this card (if any)
     const pendingInvitations = excludeInvitationId
       ? await prisma.$queryRaw<
-          Array<{ id: string; visitorCardNo: string; guestName: string }>
+          Array<{ id: string; visitorCardNo: string | null; guestName: string }>
         >`
           SELECT "id", "visitorCardNo", "guestName"
           FROM "guest_invitations"
           WHERE "status"::text = 'PENDING'
+            AND "normalizedCardKey" IS NOT NULL
             AND "normalizedCardKey" = ${comparisonKey}
             AND "id" <> ${excludeInvitationId}
           LIMIT 1
         `
       : await prisma.$queryRaw<
-          Array<{ id: string; visitorCardNo: string; guestName: string }>
+          Array<{ id: string; visitorCardNo: string | null; guestName: string }>
         >`
           SELECT "id", "visitorCardNo", "guestName"
           FROM "guest_invitations"
           WHERE "status"::text = 'PENDING'
+            AND "normalizedCardKey" IS NOT NULL
             AND "normalizedCardKey" = ${comparisonKey}
           LIMIT 1
         `;
@@ -88,6 +90,7 @@ export async function GET(request: NextRequest) {
         available: false,
         empty: false,
         formatted,
+        normalizedCardNo: formatted,
         conflictType: 'PENDING_INVITATION',
         message:
           'This card is already preassigned to an upcoming invited guest. Please choose another available card.',
@@ -98,6 +101,7 @@ export async function GET(request: NextRequest) {
       available: true,
       empty: false,
       formatted,
+      normalizedCardNo: formatted,
       message: 'Visitor Card is available.',
     });
   } catch (error: unknown) {

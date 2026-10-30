@@ -5,7 +5,7 @@ import { getSessionUser, getEmployeeSessionUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
 import { generatePassCode } from '@/lib/qrUtils';
 import { sanitizeVisitsWithDbFlags, sanitizePersonForClient } from '@/lib/personSanitizer';
-import { normalizeCardKey } from '@/lib/cardUtils';
+import { formatCardNoForStorage, normalizeCardKey } from '@/lib/cardUtils';
 import { GuestInvitationRecord } from '@/app/api/employee/invitations/route';
 
 export async function POST(
@@ -35,10 +35,12 @@ export async function POST(
       typeof body.entryGateId === 'string' && body.entryGateId.trim()
         ? body.entryGateId.trim()
         : null;
-    const confirmedCardNo =
-      typeof body.confirmedCardNo === 'string' && body.confirmedCardNo.trim()
+    const rawCardInput =
+      typeof body.visitorCardNo === 'string' && body.visitorCardNo.trim()
+        ? body.visitorCardNo.trim()
+        : typeof body.confirmedCardNo === 'string' && body.confirmedCardNo.trim()
         ? body.confirmedCardNo.trim()
-        : null;
+        : '';
     const vehicleNo =
       typeof body.vehicleNo === 'string' && body.vehicleNo.trim()
         ? body.vehicleNo.trim()
@@ -46,28 +48,63 @@ export async function POST(
     const notes =
       typeof body.notes === 'string' && body.notes.trim() ? body.notes.trim() : null;
 
-    // Resolve and verify Operator's gate authorization
-    const operatorGateAccess = await prisma.userGateAccess.findMany({
-      where: { userId: user.id },
-      include: { gate: true },
-    });
-    const assignedActiveGates = operatorGateAccess
-      .map((ga) => ga.gate)
-      .filter((g) => g && g.active);
+    const assignedCardNo = formatCardNoForStorage(rawCardInput);
+    const assignedCardKey = normalizeCardKey(rawCardInput);
 
+    if (!assignedCardNo || !assignedCardKey) {
+      return NextResponse.json(
+        {
+          error: 'Please enter a valid VC Card No. before checking in the guest.',
+          code: 'CARD_REQUIRED',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Resolve and verify Operator's gate authorization
     let resolvedGate: { id: string; name: string } | null = null;
 
-    if (requestedGateId) {
-      if (user.role === 'OPERATOR' && assignedActiveGates.length > 0) {
+    if (user.role === 'OPERATOR') {
+      const operatorGateAccess = await prisma.userGateAccess.findMany({
+        where: { userId: user.id },
+        include: { gate: true },
+      });
+      const assignedActiveGates = operatorGateAccess
+        .map((ga) => ga.gate)
+        .filter((g): g is NonNullable<typeof g> => Boolean(g && g.active));
+
+      if (assignedActiveGates.length === 0) {
+        return NextResponse.json(
+          {
+            error:
+              'No gate is assigned to your Operator account. Please contact an Administrator to assign a gate before checking in visitors.',
+            code: 'NO_GATE_ASSIGNED',
+          },
+          { status: 403 }
+        );
+      }
+
+      if (requestedGateId) {
         const match = assignedActiveGates.find((g) => g.id === requestedGateId);
         if (!match) {
           return NextResponse.json(
-            { error: 'Forbidden: You are not authorized to check in visitors at the selected gate.' },
+            {
+              error: 'You are not authorized to check in visitors at the selected gate.',
+              code: 'UNAUTHORIZED_GATE',
+            },
             { status: 403 }
           );
         }
         resolvedGate = { id: match.id, name: match.name };
       } else {
+        resolvedGate = {
+          id: assignedActiveGates[0].id,
+          name: assignedActiveGates[0].name,
+        };
+      }
+    } else {
+      // ADMIN: preserve access across all active gates
+      if (requestedGateId) {
         const dbGate = await prisma.gate.findFirst({
           where: { id: requestedGateId, active: true },
         });
@@ -75,15 +112,8 @@ export async function POST(
           resolvedGate = { id: dbGate.id, name: dbGate.name };
         }
       }
-    }
 
-    if (!resolvedGate) {
-      if (assignedActiveGates.length > 0) {
-        resolvedGate = {
-          id: assignedActiveGates[0].id,
-          name: assignedActiveGates[0].name,
-        };
-      } else {
+      if (!resolvedGate) {
         const defaultGate = await prisma.gate.findFirst({
           where: { active: true },
           orderBy: { createdAt: 'asc' },
@@ -117,6 +147,7 @@ export async function POST(
           "guestPhone",
           "guestCnic",
           "guestPhotoUrl",
+          "alongWith",
           "visitorCardNo",
           "normalizedCardKey",
           "visitDate",
@@ -160,21 +191,10 @@ export async function POST(
         throw conflictErr;
       }
 
-      // 2. Verify operator did not try to change the preassigned Visitor Card Number
-      if (
-        confirmedCardNo &&
-        normalizeCardKey(confirmedCardNo) !== invitation.normalizedCardKey
-      ) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cardMismatchErr: any = new Error(
-          `Invited guest must use their preassigned Visitor Card Number (${invitation.visitorCardNo}).`
-        );
-        cardMismatchErr.status = 400;
-        throw cardMismatchErr;
-      }
+      // NOTE: Expected arrival slot is an estimate only. Never block or reject check-in based on arrival time or date.
 
-      // 3. Acquire advisory lock on physical card key and verify no active visit holds it
-      const lockNamespaceKey = `gk_card_${invitation.normalizedCardKey}`;
+      // 2. Acquire advisory lock on physical card key and verify no active visit holds it
+      const lockNamespaceKey = `gk_card_${assignedCardKey}`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockNamespaceKey}))`;
 
       const activeVisitsWithCards = await tx.visit.findMany({
@@ -191,20 +211,41 @@ export async function POST(
       });
 
       const duplicateCardVisit = activeVisitsWithCards.find(
-        (v) => v.visitorCardNo && normalizeCardKey(v.visitorCardNo) === invitation.normalizedCardKey
+        (v) => v.visitorCardNo && normalizeCardKey(v.visitorCardNo) === assignedCardKey
       );
 
       if (duplicateCardVisit) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cardConflictErr: any = new Error(
-          `Visitor Card ${invitation.visitorCardNo} is currently in use by Visit #${duplicateCardVisit.visitNumber}.`
+          `VC Card ${assignedCardNo} is already assigned to an active visitor (Visit #${duplicateCardVisit.visitNumber}). Please enter another available card.`
         );
         cardConflictErr.status = 409;
         cardConflictErr.code = 'CARD_ALREADY_ASSIGNED';
         throw cardConflictErr;
       }
 
-      // 4. Find or create Person record (preserving historical visitor records)
+      // Also check if any legacy PENDING invitation (other than this one) holds this card
+      const legacyPendingConflict = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id"
+        FROM "guest_invitations"
+        WHERE "status"::text = 'PENDING'
+          AND "id" <> ${invitation.id}
+          AND "normalizedCardKey" IS NOT NULL
+          AND "normalizedCardKey" = ${assignedCardKey}
+        LIMIT 1
+      `;
+
+      if (legacyPendingConflict.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cardConflictErr: any = new Error(
+          `VC Card ${assignedCardNo} is reserved for another pending invitation. Please enter another available card.`
+        );
+        cardConflictErr.status = 409;
+        cardConflictErr.code = 'CARD_ALREADY_ASSIGNED';
+        throw cardConflictErr;
+      }
+
+      // 3. Find or create Person record (preserving historical visitor records)
       let existingPerson = null;
       if (invitation.guestCnic) {
         existingPerson = await tx.person.findUnique({
@@ -266,7 +307,7 @@ export async function POST(
             },
           });
 
-      // 5. Create Visit record
+      // 4. Create Visit record with the Operator-assigned VC Card Number
       const now = new Date();
       const datePrefix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
       const todayVisitsCount = await tx.visit.count({
@@ -278,6 +319,14 @@ export async function POST(
       });
       const visitNumber = `VIS-${datePrefix}-${String(todayVisitsCount + 1).padStart(4, '0')}`;
       const passCode = generatePassCode();
+      const slotLabel = invitation.expectedArrivalTime || invitation.expectedDurationWindow || '';
+
+      const defaultNotes = [
+        `Pre-invited by ${invitation.employeeName} (${invitation.departmentName})`,
+        invitation.alongWith ? `Along With: ${invitation.alongWith}` : null,
+      ]
+        .filter(Boolean)
+        .join(' • ');
 
       const createdVisit = await tx.visit.create({
         data: {
@@ -286,14 +335,14 @@ export async function POST(
           personId: savedPerson.id,
           hostName: invitation.employeeName,
           department: invitation.departmentName,
-          purpose: `Invited Guest (${invitation.expectedDurationWindow})`,
-          visitorCardNo: invitation.visitorCardNo,
+          purpose: slotLabel ? `Invited Guest (${slotLabel})` : 'Invited Guest',
+          visitorCardNo: assignedCardNo,
           vehicleNo,
           status: 'CHECKED_IN',
           checkInTime: now,
           entryGateId: resolvedGate!.id,
           checkedInById: user.id,
-          notes: notes || `Pre-invited by ${invitation.employeeName} (${invitation.departmentName})`,
+          notes: notes || defaultNotes,
         },
         include: {
           person: true,
@@ -310,10 +359,12 @@ export async function POST(
         `;
       }
 
-      // 6. Atomically transition invitation from PENDING -> CHECKED_IN
+      // 5. Atomically transition invitation from PENDING -> CHECKED_IN and save assigned VC Card No.
       const conditionalUpdateCount = await tx.$executeRaw`
         UPDATE "guest_invitations"
         SET "status" = 'CHECKED_IN'::"InvitationStatus",
+            "visitorCardNo" = ${assignedCardNo},
+            "normalizedCardKey" = ${assignedCardKey},
             "visitId" = ${createdVisit.id},
             "actualCheckInTime" = ${now},
             "entryGateId" = ${resolvedGate!.id},
@@ -335,7 +386,7 @@ export async function POST(
         throw raceErr;
       }
 
-      // 7. Create exactly ONE persistent arrival notification for the inviting employee
+      // 6. Create exactly ONE persistent arrival notification for the inviting employee
       const arrivalTimeFormatted = now.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
@@ -361,7 +412,7 @@ export async function POST(
           ${invitation.employeeId},
           'GUEST_ARRIVED',
           'Your Invited Guest Has Arrived',
-          ${`Your guest ${invitation.guestName} (Card ${invitation.visitorCardNo}) has arrived and checked in at ${resolvedGate!.name} at ${arrivalTimeFormatted}.`},
+          ${`Your guest ${invitation.guestName} (Card ${assignedCardNo}) has arrived and checked in at ${resolvedGate!.name} at ${arrivalTimeFormatted}.`},
           ${invitation.id},
           ${createdVisit.id},
           ${dedupeKey},
@@ -382,6 +433,7 @@ export async function POST(
           "guestPhone",
           "guestCnic",
           "guestPhotoUrl",
+          "alongWith",
           "visitorCardNo",
           "normalizedCardKey",
           "visitDate",

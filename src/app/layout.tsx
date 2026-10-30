@@ -5,8 +5,17 @@ import { LayoutProvider } from "@/context/LayoutContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 
 export const metadata: Metadata = {
-  title: "GATE KEEPER - Enterprise Visitor & Gate Management System",
-  description: "Advanced gate access control, vehicle tracking, Pakistani CNIC & Driving License OCR registration",
+  title: "GateShield • Enterprise Visitor & Gate Management System",
+  description:
+    "Advanced gate access control, vehicle tracking, Pakistani CNIC & Driving Licence OCR registration",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/brand/gateshield-icon-light.png", type: "image/png" },
+    ],
+    shortcut: "/brand/gateshield-icon-light.png",
+    apple: "/brand/gateshield-icon-light.png",
+  },
 };
 
 export default function RootLayout({

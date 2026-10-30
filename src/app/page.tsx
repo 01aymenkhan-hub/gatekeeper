@@ -22,7 +22,7 @@ export default function RootGateway() {
     return (
       <GatekeeperLoader
         variant="fullscreen"
-        title={t('loading_gatekeeper', 'Loading Gatekeeper...')}
+        title={t('loading_gatekeeper', 'Loading GateShield...')}
       />
     );
   }

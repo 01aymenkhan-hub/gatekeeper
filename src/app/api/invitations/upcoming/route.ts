@@ -29,6 +29,7 @@ export async function GET() {
         gi."guestPhone",
         gi."guestCnic",
         gi."guestPhotoUrl",
+        gi."alongWith",
         gi."visitorCardNo",
         gi."normalizedCardKey",
         gi."visitDate",

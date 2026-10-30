@@ -66,6 +66,13 @@ export async function PATCH(
     const { id } = await context.params;
     const body = await request.json();
 
+    if (body.isVip !== undefined && user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Forbidden: Only Administrators can assign or modify VIP status.' },
+        { status: 403 }
+      );
+    }
+
     const allowedFields = [
       'fullName',
       'fatherHusbandName',

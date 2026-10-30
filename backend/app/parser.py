@@ -262,14 +262,18 @@ def detect_cnic_format(boxes: list[BoxItem]) -> str:
     Detects whether card is Smart CNIC ('smart') or Old-format CNIC ('old').
 
     Smart CNIC features:
-      - Has English labels: 'National Identity Card', 'Date of Issue', 'Date of Expiry', 'Identity Number'
-      - Multiple dates (DOB, Issue, Expiry)
+      - Has English labels: 'National Identity Card', 'Date of Issue', 'Date of Expiry', 'Identity Number', 'Father Name', 'Name'
+      - Multiple dates (DOB, Issue, Expiry) or English person names
     Old CNIC features:
-      - Absence of English Date of Issue / Expiry labels
+      - Absence of English labels / English names
       - Typically has only one date (Date of Birth) on the front
       - Urdu text / labels
     """
     combined_text = " ".join(b.raw_text.lower() for b in boxes)
+
+    # Explicit old-card OCR markers
+    if any(k in combined_text for k in ["gwsinein", "gnein", "chss", "cnge"]):
+        return "old"
 
     smart_signatures = [
         "date of expiry",
@@ -277,6 +281,11 @@ def detect_cnic_format(boxes: list[BoxItem]) -> str:
         "national identity card",
         "identity number",
         "country of stay",
+        "father name",
+        "husband name",
+        "date of birth",
+        "holder's signature",
+        "islamic republic",
     ]
     for sig in smart_signatures:
         if sig in combined_text:
@@ -289,9 +298,20 @@ def detect_cnic_format(boxes: list[BoxItem]) -> str:
         if d:
             dates_found.add(d)
 
-    # Smart CNIC has 3 distinct dates (DOB, Issue, Expiry)
+    # Smart CNIC has 2-3 distinct dates (DOB, Issue, Expiry)
     if len(dates_found) >= 2:
         return "smart"
+
+    # If Urdu script characters are present without English smart labels, classify as old
+    has_urdu = any(re.search(r"[\u0600-\u06FF]", b.raw_text) for b in boxes)
+    if has_urdu:
+        return "old"
+
+    # If there are valid multi-word English name lines, default to smart CNIC
+    for b in boxes:
+        cleaned = clean_name_string(b.raw_text)
+        if is_valid_name(cleaned) and len(cleaned.split()) >= 2:
+            return "smart"
 
     return "old"
 
@@ -304,15 +324,15 @@ def validate_date(text: str) -> str:
     """Normalizes DD.MM.YYYY, DD-MM-YYYY, or DD/MM/YYYY into YYYY-MM-DD."""
     if not text:
         return ""
-    # Look for DD.MM.YYYY or similar
-    m = re.search(r"\b(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})\b", text)
+    # Look for DD.MM.YYYY, DD-MM-YYYY, DD/MM/YYYY (even if adjacent to punctuation/letters)
+    m = re.search(r"(?<!\d)(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})(?!\d)", text)
     if m:
         d, mth, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
         if 1 <= d <= 31 and 1 <= mth <= 12 and 1900 <= y <= 2100:
             return f"{y:04d}-{mth:02d}-{d:02d}"
 
     # Look for YYYY-MM-DD
-    m_ymd = re.search(r"\b(\d{4})[\.\/\-](\d{1,2})[\.\/\-](\d{1,2})\b", text)
+    m_ymd = re.search(r"(?<!\d)(\d{4})[\.\/\-](\d{1,2})[\.\/\-](\d{1,2})(?!\d)", text)
     if m_ymd:
         y, mth, d = int(m_ymd.group(1)), int(m_ymd.group(2)), int(m_ymd.group(3))
         if 1 <= d <= 31 and 1 <= mth <= 12 and 1900 <= y <= 2100:
@@ -321,19 +341,37 @@ def validate_date(text: str) -> str:
     return ""
 
 
+def _normalize_ocr_digit_token(token: str) -> str:
+    """Normalizes common OCR digit confusions inside numeric/CNIC tokens."""
+    trans = str.maketrans({
+        "O": "0", "o": "0", "Q": "0",
+        "I": "1", "l": "1", "|": "1",
+        "S": "5", "B": "8",
+    })
+    return token.translate(trans)
+
+
 def validate_cnic(text: str) -> str:
     """Validates and formats a 13-digit Pakistani CNIC as XXXXX-XXXXXXX-X."""
     if not text:
         return ""
-    # Strip non-digits
-    digits = re.sub(r"\D", "", text)
-    if len(digits) == 13:
-        return f"{digits[:5]}-{digits[5:12]}-{digits[12]}"
 
-    # Check for pattern with hyphens already present
-    m = re.search(r"\b(\d{5})[- ]?(\d{7})[- ]?(\d{1})\b", text)
+    # 1. Direct match for 5-7-1 pattern (with hyphen, space, dot, or underscore)
+    m = re.search(r"(?<!\d)(\d{5})[\-\.\s–—_]*(\d{7})[\-\.\s–—_]*(\d{1})(?!\d)", text)
     if m:
         return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
+
+    # 2. Try normalizing OCR letter-for-digit confusions when hyphenated structure exists
+    if "-" in text or " " in text:
+        norm_text = _normalize_ocr_digit_token(text)
+        m_norm = re.search(r"(?<!\d)(\d{5})[\-\.\s–—_]+(\d{7})[\-\.\s–—_]+(\d{1})(?!\d)", norm_text)
+        if m_norm and m_norm.group(1)[0] in "1234567":
+            return f"{m_norm.group(1)}-{m_norm.group(2)}-{m_norm.group(3)}"
+
+    # 3. Strip non-digits if exact 13 digits starting with valid province digit (1..7)
+    digits = re.sub(r"\D", "", text)
+    if len(digits) == 13 and digits[0] in "1234567":
+        return f"{digits[:5]}-{digits[5:12]}-{digits[12]}"
 
     return ""
 
@@ -363,12 +401,17 @@ def validate_country(text: str) -> str:
 def clean_name_string(text: str) -> str:
     """Cleans up names, removing trailing noise and labels."""
     cleaned = text.strip()
-    for prefix in ["Name:", "Name", "Father Name:", "Father Name", "Father", "Husband Name:"]:
+    for prefix in [
+        "Father / Husband Name:", "Father / Husband Name",
+        "Father Name:", "Father Name", "Father:", "Father",
+        "Husband Name:", "Husband Name", "Husband:",
+        "Full Name:", "Full Name", "Name:", "Name",
+    ]:
         if cleaned.lower().startswith(prefix.lower()):
-            cleaned = cleaned[len(prefix):].strip(" :-")
+            cleaned = cleaned[len(prefix):].strip(" :-.")
 
     # Remove non-alphabetical noise
-    cleaned = re.sub(r"[^A-Za-z\s\.\-']", "", cleaned).strip()
+    cleaned = re.sub(r"[^A-Za-z\s\.\-']", "", cleaned).strip(" .-")
     cleaned = re.sub(r"\s+", " ", cleaned)
     return cleaned
 
@@ -379,9 +422,12 @@ def is_valid_name(text: str) -> bool:
     if len(cleaned) < 3:
         return False
     lower = cleaned.lower()
-    if lower in LABEL_KEYWORDS:
+    if lower in LABEL_KEYWORDS or lower in {"male", "female", "pakistan", "smart", "card", "date", "birth", "issue", "expiry", "number", "identity"}:
         return False
     for kw in HEADER_KEYWORDS:
+        if kw in lower:
+            return False
+    for kw in LABEL_KEYWORDS:
         if kw in lower:
             return False
     words = [w for w in cleaned.split() if len(w) > 1]
@@ -392,27 +438,52 @@ def is_valid_name(text: str) -> bool:
 # Smart CNIC Field Extractors (Pass 1 & Crop OCR)
 # ---------------------------------------------------------------------------
 
-def extract_from_boxes(boxes: list[BoxItem], field_key: str) -> str:
-    """Extracts field value from bounding boxes inside the field's relative region."""
+def extract_from_boxes(boxes: list[BoxItem], field_key: str, exclude_texts: Optional[set[str]] = None) -> str:
+    """Extracts field value from bounding boxes inside the field's relative region, with global label/format fallbacks."""
+    exclude = {t.lower() for t in (exclude_texts or set()) if t}
     candidates = [b for b in boxes if b.in_region(field_key)]
 
     if field_key == "cnic":
+        # 1. Check region candidates first
         for b in candidates:
             res = validate_cnic(b.raw_text)
             if res:
                 return res
-        combined = "".join(b.raw_text for b in candidates)
+        combined = " ".join(b.raw_text for b in candidates)
         res = validate_cnic(combined)
+        if res:
+            return res
+
+        # 2. Fallback: scan ALL boxes across the card (handles shifted/zoomed-out cards)
+        for b in boxes:
+            res = validate_cnic(b.raw_text)
+            if res:
+                return res
+        all_combined = " ".join(b.raw_text for b in boxes)
+        res = validate_cnic(all_combined)
         if res:
             return res
 
     elif field_key in {"dob", "issue", "expiry"}:
         for b in candidates:
             res = validate_date(b.raw_text)
-            if res:
+            if res and res.lower() not in exclude:
                 return res
 
     elif field_key == "gender":
+        # Check near 'Gender' label first
+        gender_label = next((b for b in boxes if "gender" in b.raw_text.lower()), None)
+        if gender_label:
+            near_gender = [
+                b for b in boxes
+                if b is not gender_label
+                and 0 <= (b.center_y - gender_label.center_y) <= 0.14
+                and abs(b.center_x - gender_label.center_x) <= 0.22
+            ]
+            for b in near_gender:
+                res = validate_gender(b.raw_text)
+                if res:
+                    return res
         for b in candidates:
             if "gender" in b.raw_text.lower():
                 continue
@@ -427,56 +498,167 @@ def extract_from_boxes(boxes: list[BoxItem], field_key: str) -> str:
             res = validate_country(b.raw_text)
             if res:
                 return res
+        for b in boxes:
+            if "country" in b.raw_text.lower() or "stay" in b.raw_text.lower():
+                continue
+            res = validate_country(b.raw_text)
+            if res:
+                return res
 
     elif field_key == "name":
-        # 1. Prioritize label-anchored match: box immediately below 'Name' label
-        name_label = next((b for b in boxes if b.raw_text.strip().lower() == "name"), None)
+        # 1. Prioritize label-anchored match: box immediately below 'Name' label (not 'Father Name')
+        name_label = next(
+            (
+                b for b in boxes
+                if re.match(r"^name\b", b.raw_text.strip(), re.IGNORECASE)
+                and "father" not in b.raw_text.lower()
+                and "husband" not in b.raw_text.lower()
+            ),
+            None,
+        )
         if name_label:
+            # Check if name is inline inside the same box e.g. "Name Muhammad Mehmood Asim"
+            inline_clean = clean_name_string(name_label.raw_text)
+            if is_valid_name(inline_clean) and inline_clean.lower() not in exclude:
+                return inline_clean
+
             below_cands = [
                 b for b in boxes
-                if 0 < (b.center_y - name_label.center_y) <= 0.12
-                and abs(b.center_x - name_label.center_x) < 0.40
+                if b is not name_label
+                and 0 < (b.center_y - name_label.center_y) <= 0.16
+                and abs(b.center_x - name_label.center_x) < 0.45
             ]
+            below_cands.sort(key=lambda b: b.center_y)
             for b in below_cands:
+                if "father" in b.raw_text.lower() or "husband" in b.raw_text.lower():
+                    continue
                 cleaned = clean_name_string(b.raw_text)
-                if is_valid_name(cleaned):
+                if is_valid_name(cleaned) and cleaned.lower() not in exclude:
                     return cleaned
 
         for b in candidates:
-            if b.raw_text.lower() == "name":
+            if "father" in b.raw_text.lower() or "husband" in b.raw_text.lower() or b.raw_text.strip().lower() == "name":
                 continue
             cleaned = clean_name_string(b.raw_text)
-            if is_valid_name(cleaned):
+            if is_valid_name(cleaned) and cleaned.lower() not in exclude:
                 return cleaned
 
     elif field_key == "father_name":
-        # 1. Prioritize label-anchored match: box immediately below 'Father Name' label
+        # 1. Prioritize label-anchored match: box immediately below 'Father Name' or 'Husband Name' label
         father_label = next(
-            (b for b in boxes if "father" in b.raw_text.strip().lower()),
-            None
+            (b for b in boxes if "father" in b.raw_text.strip().lower() or "husband" in b.raw_text.strip().lower()),
+            None,
         )
         if father_label:
+            inline_clean = clean_name_string(father_label.raw_text)
+            if is_valid_name(inline_clean) and inline_clean.lower() not in exclude:
+                return inline_clean
+
             below_cands = [
                 b for b in boxes
-                if 0 < (b.center_y - father_label.center_y) <= 0.12
-                and abs(b.center_x - father_label.center_x) < 0.40
+                if b is not father_label
+                and 0 < (b.center_y - father_label.center_y) <= 0.16
+                and abs(b.center_x - father_label.center_x) < 0.45
             ]
+            below_cands.sort(key=lambda b: b.center_y)
             for b in below_cands:
                 cleaned = clean_name_string(b.raw_text)
-                if is_valid_name(cleaned):
+                if is_valid_name(cleaned) and cleaned.lower() not in exclude:
                     return cleaned
 
         for b in candidates:
-            if "father" in b.raw_text.lower():
-                cleaned = clean_name_string(b.raw_text)
-                if is_valid_name(cleaned):
-                    return cleaned
-                continue
             cleaned = clean_name_string(b.raw_text)
-            if is_valid_name(cleaned):
+            if is_valid_name(cleaned) and cleaned.lower() not in exclude:
                 return cleaned
 
     return ""
+
+
+def _resolve_smart_dates(boxes: list[BoxItem]) -> tuple[str, str, str]:
+    """
+    Resolves (dateOfBirth, dateOfIssue, dateOfExpiry) using label anchors first,
+    then spatial position and chronological order (DOB < Issue < Expiry).
+    """
+    dob = ""
+    issue = ""
+    expiry = ""
+    used_dates: set[str] = set()
+
+    # Collect all boxes containing valid dates
+    date_boxes: list[tuple[str, BoxItem]] = []
+    for b in boxes:
+        d = validate_date(b.raw_text)
+        if d:
+            date_boxes.append((d, b))
+
+    if not date_boxes:
+        return "", "", ""
+
+    def find_below_label(keywords: list[str]) -> str:
+        lbl = next(
+            (b for b in boxes if any(k in b.raw_text.lower() for k in keywords)),
+            None,
+        )
+        if not lbl:
+            return ""
+        # Check inline first
+        inline_d = validate_date(lbl.raw_text)
+        if inline_d and inline_d not in used_dates:
+            used_dates.add(inline_d)
+            return inline_d
+        # Find nearest date box below or to the right of label
+        cands = [
+            (d, b) for (d, b) in date_boxes
+            if d not in used_dates
+            and -0.02 <= (b.center_y - lbl.center_y) <= 0.16
+            and abs(b.center_x - lbl.center_x) <= 0.25
+        ]
+        if cands:
+            cands.sort(key=lambda item: abs(item[1].center_y - lbl.center_y) + abs(item[1].center_x - lbl.center_x))
+            chosen = cands[0][0]
+            used_dates.add(chosen)
+            return chosen
+        return ""
+
+    dob = find_below_label(["date of birth", "birth"])
+    issue = find_below_label(["date of issue", "issue"])
+    expiry = find_below_label(["date of expiry", "expiry"])
+
+    # Collect distinct chronological dates for fallback assignment
+    unique_dates = sorted({d for d, _ in date_boxes})
+    if len(unique_dates) >= 3 and (not dob or not issue or not expiry):
+        # On a Pakistani Smart CNIC with 3 dates, chronological order is always DOB < Issue < Expiry
+        if not dob:
+            dob = unique_dates[0]
+        if not issue:
+            issue = unique_dates[1]
+        if not expiry:
+            expiry = unique_dates[-1]
+    elif len(unique_dates) == 2 and (not dob or (not issue and not expiry)):
+        d_early, d_late = unique_dates[0], unique_dates[1]
+        early_year = int(d_early[:4])
+        late_year = int(d_late[:4])
+        if not dob and early_year <= 2012:
+            dob = d_early
+            if not issue and not expiry:
+                if late_year >= 2027:
+                    expiry = d_late
+                else:
+                    issue = d_late
+        elif not issue and not expiry and late_year - early_year in {5, 10}:
+            issue = d_early
+            expiry = d_late
+    elif len(unique_dates) == 1 and not dob and not issue and not expiry:
+        only_d = unique_dates[0]
+        only_year = int(only_d[:4])
+        if only_year <= 2012:
+            dob = only_d
+        elif only_year >= 2027:
+            expiry = only_d
+        else:
+            issue = only_d
+
+    return dob, issue, expiry
 
 
 def extract_from_crop_ocr(crop_ocr_result: dict[str, Any], field_key: str) -> str:
@@ -488,7 +670,7 @@ def extract_from_crop_ocr(crop_ocr_result: dict[str, Any], field_key: str) -> st
             res = validate_cnic(text)
             if res:
                 return res
-        combined = "".join(text_items)
+        combined = " ".join(text_items)
         return validate_cnic(combined)
 
     elif field_key in {"dob", "issue", "expiry"}:
@@ -526,43 +708,79 @@ def parse_smart_cnic_fields(
     ocr_runner: Optional[Callable[[np.ndarray], dict[str, Any]]] = None,
 ) -> dict[str, str]:
     """Parses all 8 required fields for Pakistani Smart CNIC (chip card)."""
+    name_val = extract_from_boxes(boxes, "name")
+    father_val = extract_from_boxes(boxes, "father_name", exclude_texts={name_val} if name_val else None)
+
+    # Fallback for shifted/zoomed-out cards where name/fatherName fell outside default FIELD_REGIONS
+    if not name_val or not father_val:
+        name_boxes: list[tuple[float, str]] = []
+        for b in boxes:
+            low = b.raw_text.strip().lower()
+            if any(lbl in low for lbl in ["father", "husband", "gender", "country", "identity", "birth", "issue", "expiry", "signature", "pakistan", "national"]):
+                continue
+            cleaned = clean_name_string(b.raw_text)
+            if is_valid_name(cleaned) and len(cleaned) >= 4:
+                name_boxes.append((b.center_y, cleaned))
+        name_boxes.sort(key=lambda item: item[0])
+        distinct_names: list[str] = []
+        for _, cand in name_boxes:
+            if cand.lower() not in {n.lower() for n in distinct_names}:
+                distinct_names.append(cand)
+        if not name_val and len(distinct_names) >= 1:
+            name_val = distinct_names[0]
+        if not father_val:
+            for cand in distinct_names:
+                if cand.lower() != (name_val or "").lower():
+                    father_val = cand
+                    break
+
+    dob_val, issue_val, expiry_val = _resolve_smart_dates(boxes)
+    cnic_val = extract_from_boxes(boxes, "cnic")
+    gender_val = extract_from_boxes(boxes, "gender")
+    country_val = extract_from_boxes(boxes, "country")
+
     extracted: dict[str, str] = {
-        "name": extract_from_boxes(boxes, "name"),
-        "fatherName": extract_from_boxes(boxes, "father_name"),
-        "gender": extract_from_boxes(boxes, "gender"),
-        "countryOfStay": extract_from_boxes(boxes, "country"),
-        "cnic": extract_from_boxes(boxes, "cnic"),
-        "dateOfBirth": extract_from_boxes(boxes, "dob"),
-        "dateOfIssue": extract_from_boxes(boxes, "issue"),
-        "dateOfExpiry": extract_from_boxes(boxes, "expiry"),
+        "name": name_val,
+        "fatherName": father_val,
+        "gender": gender_val,
+        "countryOfStay": country_val,
+        "cnic": cnic_val,
+        "dateOfBirth": dob_val or extract_from_boxes(boxes, "dob"),
+        "dateOfIssue": issue_val or extract_from_boxes(boxes, "issue", exclude_texts={dob_val}),
+        "dateOfExpiry": expiry_val or extract_from_boxes(boxes, "expiry", exclude_texts={dob_val, issue_val}),
     }
 
+    # Pass 2: Targeted crop OCR only for key fields still missing
     key_mapping = {
+        "cnic": "cnic",
         "name": "name",
         "fatherName": "father_name",
-        "gender": "gender",
-        "countryOfStay": "country",
-        "cnic": "cnic",
         "dateOfBirth": "dob",
-        "dateOfIssue": "issue",
-        "dateOfExpiry": "expiry",
     }
 
-    # Pass 2: Targeted crop OCR for missing or invalid fields
     if ocr_runner is not None:
         for field_name, region_key in key_mapping.items():
             if not extracted[field_name]:
                 logger.info("Running targeted OCR for missing Smart CNIC field: %s", field_name)
                 try:
-                    crop = get_field_crop(normalized_card, region_key)
+                    crop = get_field_crop(normalized_card, region_key, margin_px=12)
                     if crop.size > 0:
                         crop_result = ocr_runner(crop)
                         val = extract_from_crop_ocr(crop_result, region_key)
-                        if val:
+                        if val and (field_name != "fatherName" or val.lower() != extracted["name"].lower()):
                             extracted[field_name] = val
                             logger.info("Successfully recovered %s: %s", field_name, val)
                 except Exception as e:
                     logger.warning("Targeted OCR failed for %s: %s", field_name, e)
+
+    # Derive Gender from NADRA CNIC last digit (odd = Male, even = Female) if not read from box
+    if not extracted["gender"] and extracted["cnic"]:
+        last_digit = extracted["cnic"][-1]
+        if last_digit.isdigit():
+            extracted["gender"] = "Male" if int(last_digit) % 2 != 0 else "Female"
+
+    if not extracted["countryOfStay"] and (extracted["cnic"] or extracted["name"]):
+        extracted["countryOfStay"] = "Pakistan"
 
     # Smart CNIC front has no identification mark -> empty string
     extracted["cnicIdentification"] = ""

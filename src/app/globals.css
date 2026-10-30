@@ -115,6 +115,15 @@ body {
   }
 }
 
+@keyframes gk-vc-card-wave-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.32), 0 0 0 0 rgba(16, 185, 129, 0.14);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.12), 0 0 0 12px rgba(16, 185, 129, 0);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .gk-pulse-emerald {
     animation: gk-subtle-wave-emerald 2.6s infinite ease-in-out;
@@ -122,5 +131,168 @@ body {
   .gk-pulse-blue {
     animation: gk-subtle-wave-blue 2.6s infinite ease-in-out;
   }
+  .gk-vc-card-wave {
+    animation: gk-vc-card-wave-glow 2.4s infinite ease-in-out;
+  }
 }
 
+/* ========================================================================== */
+/* GateShield Subtle Gate-Opening, Perimeter Scan & Special Guest Animations  */
+/* ========================================================================== */
+
+/*
+ * 0. Continuous clockwise perimeter scan around the outer hexagonal building outline:
+ *    Uses SVG pathLength="1000" so 1000 -> 0 loops with zero jump or seam.
+ *    Starts at top peak (287.5, 12) and reaches the bottom-right gate entrance
+ *    at ~35%..52% of the cycle, synchronized with the gate opening.
+ */
+@keyframes gs-perimeter-scan {
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+/*
+ * 1. Inner gate leaf movement:
+ *    - 0%..12%: Rests in the exact official GateShield open-gate position (0deg)
+ *    - 12%..44%: Smoothly pivots inward around the right door hinge (398, 420)
+ *    - 44%..56%: Holds gently open as the perimeter scan reaches the gate & access light passes
+ *    - 56%..88%: Smoothly returns to the exact official GateShield position (0deg)
+ *    - 88%..100%: Stable rest before next cycle
+ */
+@keyframes gs-gate-open {
+  0%, 12% {
+    transform: rotate(0deg);
+  }
+  44%, 56% {
+    transform: rotate(13.5deg);
+  }
+  88%, 100% {
+    transform: rotate(0deg);
+  }
+}
+
+/*
+ * 2. Subtle blue access light travelling inward across the entrance threshold
+ */
+@keyframes gs-access-light-sweep {
+  0%, 16% {
+    opacity: 0;
+    transform: translate(14px, 10px);
+  }
+  36% {
+    opacity: 0.85;
+  }
+  54% {
+    opacity: 0.9;
+    transform: translate(-18px, -12px);
+  }
+  76%, 100% {
+    opacity: 0;
+    transform: translate(-30px, -20px);
+  }
+}
+
+/*
+ * 3. Subtle highlight on the moving lower edge of the gate leaf & entrance pulse
+ *    synchronized with the perimeter scan passing the gate (35%..56%)
+ */
+@keyframes gs-gate-edge-highlight {
+  0%, 18% {
+    opacity: 0;
+  }
+  38%, 54% {
+    opacity: 0.78;
+  }
+  80%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes gs-entrance-pulse {
+  0%, 24% {
+    opacity: 0;
+  }
+  40%, 52% {
+    opacity: 0.55;
+  }
+  74%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes gs-badge-attention {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0);
+  }
+}
+
+/* Cut out only the lower inner doorway swing zone so the outer hexagon, lintel, and jambs in the official PNG remain 100% untouched */
+.gs-logo-stationary-base {
+  clip-path: polygon(
+    0% 0%,
+    100% 0%,
+    100% 100%,
+    0% 100%,
+    0% 79.5%,
+    55.90% 79.5%,
+    69.10% 72.85%,
+    69.10% 61.5%,
+    55.90% 61.5%,
+    55.90% 79.5%,
+    0% 79.5%
+  );
+}
+
+.gs-gate-leaf {
+  transform-box: view-box;
+  transform-origin: 398px 420px;
+}
+
+.gs-access-light {
+  transform-box: view-box;
+  transform-origin: 360px 425px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gs-perimeter-scan-line {
+    animation: gs-perimeter-scan 2.6s linear infinite;
+    will-change: stroke-dashoffset;
+  }
+  .gs-gate-leaf {
+    animation: gs-gate-open 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    will-change: transform;
+  }
+  .gs-access-light {
+    animation: gs-access-light-sweep 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    will-change: transform, opacity;
+  }
+  .gs-gate-edge {
+    animation: gs-gate-edge-highlight 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    will-change: opacity;
+  }
+  .gs-entrance-glow {
+    animation: gs-entrance-pulse 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    will-change: opacity;
+  }
+  .gs-special-guest-badge {
+    animation: gs-badge-attention 2.4s ease-in-out infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gs-logo-stationary-base {
+    clip-path: none !important;
+  }
+  .gs-gate-overlay-svg {
+    display: none !important;
+  }
+}

@@ -2,11 +2,12 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useLayout } from '@/context/LayoutContext';
+import { useLanguage } from '@/context/LanguageContext';
+import GateShieldLogo from '@/components/ui/GateShieldLogo';
 import {
-  Shield,
   LayoutDashboard,
   Users,
   Briefcase,
@@ -25,34 +26,51 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
+  Package,
+  Crown,
+  Clock,
+  CheckCircle2,
+  History,
 } from 'lucide-react';
 
 interface NavItem {
-  label: string;
+  labelKey: string;
+  defaultLabel: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Visitors', href: '/visitors', icon: Users },
-  { label: 'Vendors', href: '/vendors', icon: Briefcase },
-  { label: 'Interviews', href: '/interviews', icon: UserCheck },
-  { label: 'Special Guests', href: '/special-guests', icon: Award },
-  { label: 'Contractors', href: '/contractors', icon: HardHat },
-  { label: 'Deliveries', href: '/deliveries', icon: Truck },
-  { label: 'Departments', href: '/departments', icon: Building2, adminOnly: true },
-  { label: 'Employees', href: '/employees', icon: Users, adminOnly: true },
-  { label: 'Reports & Analytics', href: '/reports', icon: FileBarChart, adminOnly: true },
-  { label: 'Audit Logs', href: '/audit-logs', icon: ShieldCheck, adminOnly: true },
-  { label: 'Manage Access', href: '/access', icon: UserCog, adminOnly: true },
-  { label: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
+  { labelKey: 'nav_dashboard', defaultLabel: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { labelKey: 'nav_visitors', defaultLabel: 'Visitors', href: '/visitors', icon: Users },
+  { labelKey: 'vendors', defaultLabel: 'Vendors', href: '/vendors', icon: Briefcase },
+  { labelKey: 'interviews', defaultLabel: 'Interviews', href: '/interviews', icon: UserCheck },
+  { labelKey: 'nav_guest', defaultLabel: 'Guests', href: '/special-guests', icon: Award },
+  { labelKey: 'nav_vip_guest', defaultLabel: 'VIP Guests', href: '/vip-guests', icon: Crown },
+  { labelKey: 'cat_contractor', defaultLabel: 'Contractors', href: '/contractors', icon: HardHat },
+  { labelKey: 'deliveries', defaultLabel: 'Deliveries', href: '/deliveries', icon: Truck },
+  { labelKey: 'nav_departments', defaultLabel: 'Departments', href: '/departments', icon: Building2, adminOnly: true },
+  { labelKey: 'nav_employees', defaultLabel: 'Employees', href: '/employees', icon: Users, adminOnly: true },
+  { labelKey: 'nav_reports', defaultLabel: 'Reports & Analytics', href: '/reports', icon: FileBarChart, adminOnly: true },
+  { labelKey: 'nav_audit_logs', defaultLabel: 'Audit Logs', href: '/audit-logs', icon: ShieldCheck, adminOnly: true },
+  { labelKey: 'nav_operators', defaultLabel: 'Manage Access', href: '/access', icon: UserCog, adminOnly: true },
+  { labelKey: 'nav_settings', defaultLabel: 'Settings', href: '/settings', icon: Settings, adminOnly: true },
+];
+
+const PARCEL_NAV_ITEMS: NavItem[] = [
+  { labelKey: 'parcel_tracker_title', defaultLabel: 'Parcel Tracker', href: '/parcels?tab=expected', icon: Clock },
+  { labelKey: 'parcel_tab_received', defaultLabel: 'Received Parcels', href: '/parcels?tab=received', icon: Package },
+  { labelKey: 'parcel_tab_delivered', defaultLabel: 'Delivered Parcels', href: '/parcels?tab=delivered', icon: CheckCircle2 },
+  { labelKey: 'parcel_tab_history', defaultLabel: 'Parcel History', href: '/parcels?tab=history', icon: History },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, theme, toggleTheme, logout } = useAuth();
+  const { t, language } = useLanguage();
+  const isUrdu = language === 'ur';
   const {
     isMobileSidebarOpen,
     closeMobileSidebar,
@@ -61,19 +79,27 @@ export default function Sidebar() {
   } = useLayout();
 
   const [pendingEmployeeCount, setPendingEmployeeCount] = React.useState<number>(0);
+  const [pendingOperatorCount, setPendingOperatorCount] = React.useState<number>(0);
   const badgeReqInFlightRef = React.useRef(false);
 
-  const fetchPendingEmployeeCount = React.useCallback(async () => {
+  const fetchPendingCounts = React.useCallback(async () => {
     if (user?.role !== 'ADMIN' || badgeReqInFlightRef.current) return;
     badgeReqInFlightRef.current = true;
     try {
-      const res = await fetch('/api/admin/employees?summaryOnly=true', {
-        cache: 'no-store',
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const [empRes, opRes] = await Promise.all([
+        fetch('/api/admin/employees?summaryOnly=true', { cache: 'no-store' }),
+        fetch('/api/admin/operators?summaryOnly=true', { cache: 'no-store' }),
+      ]);
+      if (empRes.ok) {
+        const data = await empRes.json();
         if (typeof data.pendingCount === 'number') {
           setPendingEmployeeCount(data.pendingCount);
+        }
+      }
+      if (opRes.ok) {
+        const opData = await opRes.json();
+        if (typeof opData.pendingCount === 'number') {
+          setPendingOperatorCount(opData.pendingCount);
         }
       }
     } catch {
@@ -86,28 +112,32 @@ export default function Sidebar() {
   React.useEffect(() => {
     if (user?.role !== 'ADMIN') return;
     const initTimer = setTimeout(() => {
-      void fetchPendingEmployeeCount();
+      void fetchPendingCounts();
     }, 0);
     const interval = setInterval(() => {
-      void fetchPendingEmployeeCount();
+      void fetchPendingCounts();
     }, 6000);
     const handleImmediateRefresh = () => {
-      void fetchPendingEmployeeCount();
+      void fetchPendingCounts();
     };
     window.addEventListener('gk:refresh-employee-badge', handleImmediateRefresh);
+    window.addEventListener('gk:refresh-operator-badge', handleImmediateRefresh);
     return () => {
       clearTimeout(initTimer);
       clearInterval(interval);
       window.removeEventListener('gk:refresh-employee-badge', handleImmediateRefresh);
+      window.removeEventListener('gk:refresh-operator-badge', handleImmediateRefresh);
     };
-  }, [user?.role, fetchPendingEmployeeCount]);
+  }, [user?.role, fetchPendingCounts]);
+
+  const currentParcelTab = searchParams?.get('tab') || 'expected';
 
   const renderNavLinks = (isCollapsed: boolean, onLinkClick?: () => void) => {
     return (
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
         {!isCollapsed && (
           <div className="px-3 pb-2 text-[10px] font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400">
-            Navigation
+            {isUrdu ? 'مینو' : 'Navigation'}
           </div>
         )}
 
@@ -116,14 +146,21 @@ export default function Sidebar() {
 
           const isActive = pathname === item.href;
           const Icon = item.icon;
-          const showPendingBadge = item.href === '/employees' && pendingEmployeeCount > 0;
+          const displayLabel = t(item.labelKey, item.defaultLabel);
+          const badgeCount =
+            item.href === '/employees'
+              ? pendingEmployeeCount
+              : item.href === '/access'
+                ? pendingOperatorCount
+                : 0;
+          const showPendingBadge = badgeCount > 0;
 
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={onLinkClick}
-              title={isCollapsed ? item.label : undefined}
+              title={isCollapsed ? displayLabel : undefined}
               className={`relative flex items-center rounded-xl text-sm font-medium transition-all group ${
                 isCollapsed
                   ? 'justify-center p-2.5 my-1'
@@ -142,7 +179,7 @@ export default function Sidebar() {
                       : 'text-slate-500 group-hover:text-slate-900 dark:text-slate-400 dark:group-hover:text-slate-200'
                   }`}
                 />
-                {!isCollapsed && <span className="truncate">{item.label}</span>}
+                {!isCollapsed && <span className="truncate">{displayLabel}</span>}
               </div>
 
               {!isCollapsed && (
@@ -155,7 +192,7 @@ export default function Sidebar() {
                           : 'bg-amber-500 text-slate-950 shadow-2xs'
                       }`}
                     >
-                      {pendingEmployeeCount}
+                      {badgeCount}
                     </span>
                   )}
                   {isActive && <ChevronRight className="w-4 h-4 opacity-70 shrink-0" />}
@@ -164,12 +201,62 @@ export default function Sidebar() {
 
               {isCollapsed && showPendingBadge && (
                 <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-slate-950 text-[9px] font-extrabold flex items-center justify-center">
-                  {pendingEmployeeCount}
+                  {badgeCount}
                 </span>
               )}
             </Link>
           );
         })}
+
+        {/* Dedicated Parcel Management Section */}
+        <div className="pt-3 mt-2 border-t border-slate-200/80 dark:border-slate-800/80 space-y-1">
+          {!isCollapsed && (
+            <div className="px-3 pb-1.5 text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
+              <Package className="w-3 h-3" />
+              <span>{t('emp_card_parcel_management', 'Parcel Management')}</span>
+            </div>
+          )}
+
+          {PARCEL_NAV_ITEMS.map((item) => {
+            const tabKey = item.href.split('tab=')[1] || 'expected';
+            const isActive = pathname === '/parcels' && currentParcelTab === tabKey;
+            const Icon = item.icon;
+            const displayLabel = t(item.labelKey, item.defaultLabel);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onLinkClick}
+                title={isCollapsed ? displayLabel : undefined}
+                className={`relative flex items-center rounded-xl text-sm font-medium transition-all group ${
+                  isCollapsed
+                    ? 'justify-center p-2.5 my-1'
+                    : 'justify-between px-3 py-2'
+                } ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20 font-bold'
+                    : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                }`}
+              >
+                <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+                  <Icon
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      isActive
+                        ? 'text-white'
+                        : 'text-blue-600 group-hover:text-blue-700 dark:text-blue-400 dark:group-hover:text-blue-300'
+                    }`}
+                  />
+                  {!isCollapsed && <span className="truncate">{displayLabel}</span>}
+                </div>
+
+                {!isCollapsed && isActive && (
+                  <ChevronRight className="w-4 h-4 opacity-70 shrink-0" />
+                )}
+              </Link>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -188,12 +275,12 @@ export default function Sidebar() {
             {theme === 'dark' ? (
               <>
                 <Sun className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                {!isCollapsed && <span>Light</span>}
+                {!isCollapsed && <span>{isUrdu ? 'روشن' : 'Light'}</span>}
               </>
             ) : (
               <>
                 <Moon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
-                {!isCollapsed && <span>Dark</span>}
+                {!isCollapsed && <span>{isUrdu ? 'ڈارک' : 'Dark'}</span>}
               </>
             )}
           </button>
@@ -203,10 +290,10 @@ export default function Sidebar() {
             className={`flex items-center justify-center gap-1 text-xs font-semibold rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer ${
               isCollapsed ? 'p-2 w-full' : 'px-2 py-1.5'
             }`}
-            title="Sign out"
+            title={t('logout', 'Sign out')}
           >
             <LogOut className="w-3.5 h-3.5 shrink-0" />
-            {!isCollapsed && <span>Logout</span>}
+            {!isCollapsed && <span>{t('logout', 'Logout')}</span>}
           </button>
         </div>
 
@@ -255,33 +342,27 @@ export default function Sidebar() {
         {/* Brand / Logo Section */}
         <div
           className={`h-16 border-b border-slate-200 dark:border-slate-800 flex items-center ${
-            isDesktopCollapsed ? 'justify-center px-2' : 'justify-between px-5'
+            isDesktopCollapsed ? 'justify-center px-2' : 'justify-between px-4'
           }`}
         >
           {isDesktopCollapsed ? (
             <button
               onClick={toggleDesktopSidebar}
-              className="w-10 h-10 rounded-xl bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white shadow-md shadow-blue-500/20 transition-all cursor-pointer group"
+              className="w-11 h-11 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center transition-all cursor-pointer group"
               title="Expand sidebar"
               aria-label="Expand sidebar"
             >
-              <Shield className="w-5 h-5 text-white group-hover:hidden transition-all" />
-              <ChevronRight className="w-5 h-5 text-white hidden group-hover:block transition-all" />
+              <GateShieldLogo
+                variant="icon"
+                size="sm"
+                className="group-hover:hidden transition-all"
+              />
+              <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-200 hidden group-hover:block transition-all" />
             </button>
           ) : (
             <>
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
-                  <Shield className="w-5 h-5 text-white" />
-                </div>
-                <div className="overflow-hidden">
-                  <h1 className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white leading-tight truncate">
-                    GATE KEEPER
-                  </h1>
-                  <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">
-                    Visitor &amp; Access Control
-                  </p>
-                </div>
+              <div className="flex items-center overflow-hidden min-w-0 pr-2">
+                <GateShieldLogo variant="full" size="md" />
               </div>
 
               {/* Desktop Collapse Button */}
@@ -322,24 +403,14 @@ export default function Sidebar() {
         }`}
       >
         {/* Mobile Brand Header with Close Button */}
-        <div className="h-16 px-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white leading-tight">
-                GATE KEEPER
-              </h1>
-              <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                Visitor &amp; Access Control
-              </p>
-            </div>
+        <div className="h-16 px-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+          <div className="flex items-center min-w-0 overflow-hidden">
+            <GateShieldLogo variant="full" size="md" />
           </div>
 
           <button
             onClick={closeMobileSidebar}
-            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
+            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer shrink-0"
             title="Close menu"
             aria-label="Close menu"
           >

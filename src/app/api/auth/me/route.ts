@@ -23,7 +23,9 @@ export async function GET() {
               select: {
                 id: true,
                 name: true,
+                description: true,
                 type: true,
+                active: true,
               },
             },
           },
@@ -35,7 +37,51 @@ export async function GET() {
       return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
     }
 
-    const gates = dbUser.gateAccess.map((ga: { gate: { id: string; name: string; type: string } }) => ga.gate);
+    let gates: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      type: string;
+      active: boolean;
+    }> = [];
+
+    if (dbUser.role === 'ADMIN') {
+      gates = await prisma.gate.findMany({
+        where: { active: true },
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          type: true,
+          active: true,
+        },
+      });
+    } else {
+      gates = dbUser.gateAccess
+        .map(
+          (ga: {
+            gate: {
+              id: string;
+              name: string;
+              description: string | null;
+              type: string;
+              active: boolean;
+            } | null;
+          }) => ga.gate
+        )
+        .filter(
+          (
+            g
+          ): g is {
+            id: string;
+            name: string;
+            description: string | null;
+            type: string;
+            active: boolean;
+          } => Boolean(g && g.active)
+        );
+    }
 
     return NextResponse.json({
       authenticated: true,

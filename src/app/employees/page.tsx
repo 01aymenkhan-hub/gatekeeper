@@ -7,6 +7,7 @@ import GatekeeperLoader from '@/components/ui/GatekeeperLoader';
 import {
   Users,
   UserCheck,
+  UserPlus,
   Clock,
   CheckCircle2,
   XCircle,
@@ -17,12 +18,18 @@ import {
   Briefcase,
   Phone,
   Mail,
+  Lock,
   Check,
   X,
   Power,
   ExternalLink,
 } from 'lucide-react';
 import type { AdminEmployeeRow } from '@/app/api/admin/employees/route';
+
+interface DepartmentOption {
+  id: string;
+  name: string;
+}
 
 export default function AdminEmployeesPage() {
   const [activeTab, setActiveTab] = useState<'REQUESTS' | 'EMPLOYEES'>('REQUESTS');
@@ -48,6 +55,19 @@ export default function AdminEmployeesPage() {
   // Approve Confirmation Modal state
   const [approveTarget, setApproveTarget] = useState<AdminEmployeeRow | null>(null);
 
+  // Add Employee Modal state
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [addFullName, setAddFullName] = useState('');
+  const [addDepartmentId, setAddDepartmentId] = useState('');
+  const [addPosition, setAddPosition] = useState('');
+  const [addPhoneNumber, setAddPhoneNumber] = useState('');
+  const [addEmail, setAddEmail] = useState('');
+  const [addPassword, setAddPassword] = useState('');
+  const [addConfirmPassword, setAddConfirmPassword] = useState('');
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+
   const reqInFlightRef = useRef(false);
   const fetchEmployeesData = useCallback(async () => {
     if (reqInFlightRef.current) return;
@@ -69,6 +89,31 @@ export default function AdminEmployeesPage() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    const fetchDepartments = async () => {
+      try {
+        const res = await fetch('/api/departments?activeOnly=true');
+        if (res.ok) {
+          const data = await res.json();
+          if (active && Array.isArray(data.departments)) {
+            setDepartments(data.departments);
+            if (data.departments.length > 0 && !addDepartmentId) {
+              setAddDepartmentId(data.departments[0].id);
+            }
+          }
+        }
+      } catch {
+        // Non-fatal
+      }
+    };
+    fetchDepartments();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     const initTimer = setTimeout(() => {
       void fetchEmployeesData();
     }, 0);
@@ -84,6 +129,67 @@ export default function AdminEmployeesPage() {
   const notifySidebarBadgeRefresh = () => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('gk:refresh-employee-badge'));
+    }
+  };
+
+  const openAddEmployeeModal = () => {
+    setAddFullName('');
+    if (departments.length > 0 && !addDepartmentId) {
+      setAddDepartmentId(departments[0].id);
+    }
+    setAddPosition('');
+    setAddPhoneNumber('');
+    setAddEmail('');
+    setAddPassword('');
+    setAddConfirmPassword('');
+    setAddError(null);
+    setIsAddModalOpen(true);
+  };
+
+  const handleCreateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddError(null);
+
+    if (addPassword !== addConfirmPassword) {
+      setAddError('Password and Confirm Password do not match.');
+      return;
+    }
+
+    setAddSubmitting(true);
+    try {
+      const res = await fetch('/api/admin/employees', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: addFullName.trim(),
+          departmentId: addDepartmentId,
+          position: addPosition.trim(),
+          phoneNumber: addPhoneNumber.trim(),
+          email: addEmail.trim(),
+          password: addPassword,
+          confirmPassword: addConfirmPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAddError(data.error || 'Failed to create employee account.');
+        return;
+      }
+
+      setIsAddModalOpen(false);
+      setActiveTab('EMPLOYEES');
+      setBannerMessage({
+        type: 'success',
+        text:
+          data.message ||
+          `Employee account for ${addFullName.trim()} created and immediately approved.`,
+      });
+      await fetchEmployeesData();
+      notifySidebarBadgeRefresh();
+    } catch {
+      setAddError('Network error while creating employee account. Please try again.');
+    } finally {
+      setAddSubmitting(false);
     }
   };
 
@@ -282,11 +388,19 @@ export default function AdminEmployeesPage() {
                   Employee Management
                 </h1>
                 <p className="text-xs sm:text-sm text-blue-100 max-w-2xl">
-                  Review and approve Employee Portal registration requests, and manage approved employee accounts.
+                  Review and approve Employee Portal registration requests, or directly add approved employee accounts.
                 </p>
               </div>
 
-              <div className="flex items-center gap-2.5 shrink-0">
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={openAddEmployeeModal}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold shadow-lg shadow-emerald-950/20 flex items-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Add Employee</span>
+                </button>
                 <a
                   href="/employee"
                   target="_blank"
@@ -563,7 +677,7 @@ export default function AdminEmployeesPage() {
               /* TAB 2: APPROVED EMPLOYEES                                         */
               /* ================================================================= */
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
                       Approved Employees
@@ -572,6 +686,14 @@ export default function AdminEmployeesPage() {
                       Active employee accounts authorized to sign in at /employee and invite guests.
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={openAddEmployeeModal}
+                    className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-xs flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Add Employee</span>
+                  </button>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -680,6 +802,190 @@ export default function AdminEmployeesPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Add Employee Modal */}
+        {isAddModalOpen && (
+          <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="w-full max-w-lg rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95">
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <UserPlus className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    Add Employee
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Creates an immediately active and approved Employee Portal account.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateEmployee} className="p-6 space-y-4 text-xs">
+                {addError && (
+                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 font-semibold text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <span>{addError}</span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={addFullName}
+                      onChange={(e) => setAddFullName(e.target.value)}
+                      placeholder="e.g. Ayesha Khan"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Department *
+                    </label>
+                    <div className="relative">
+                      <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <select
+                        required
+                        value={addDepartmentId}
+                        onChange={(e) => setAddDepartmentId(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="" disabled>
+                          Select Department
+                        </option>
+                        {departments.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Position *
+                    </label>
+                    <div className="relative">
+                      <Briefcase className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        value={addPosition}
+                        onChange={(e) => setAddPosition(e.target.value)}
+                        placeholder="e.g. Operations Manager"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Phone Number *
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="tel"
+                        required
+                        value={addPhoneNumber}
+                        onChange={(e) => setAddPhoneNumber(e.target.value)}
+                        placeholder="03001234567"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      required
+                      value={addEmail}
+                      onChange={(e) => setAddEmail(e.target.value)}
+                      placeholder="employee@company.com"
+                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Password *
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        value={addPassword}
+                        onChange={(e) => setAddPassword(e.target.value)}
+                        placeholder="Min 6 characters"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Confirm Password *
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        value={addConfirmPassword}
+                        onChange={(e) => setAddConfirmPassword(e.target.value)}
+                        placeholder="Re-enter password"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addSubmitting}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-extrabold shadow-md cursor-pointer flex items-center gap-1.5"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>{addSubmitting ? 'Creating Employee...' : 'Create Employee Account'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 

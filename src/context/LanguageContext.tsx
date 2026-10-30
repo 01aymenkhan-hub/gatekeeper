@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export type Language = 'ur' | 'en';
 
@@ -13,7 +13,7 @@ interface LanguageContextType {
 
 const TRANSLATIONS: Record<string, Record<Language, string>> = {
   // App & Branding
-  app_title: { en: 'Gate Keeper', ur: 'گیٹ کیپر' },
+  app_title: { en: 'GateShield', ur: 'گیٹ شیلڈ' },
   app_subtitle: { en: 'Enterprise Visitor & Gate Access Control System', ur: 'سیکیورٹی اور وزیٹر رسائی کنٹرول سسٹم' },
 
   // Gate Control
@@ -21,6 +21,11 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   all_gates: { en: 'All Gates', ur: 'تمام گیٹس' },
   select_gate: { en: 'Select Gate', ur: 'گیٹ منتخب کریں' },
   switch_gate: { en: 'Switch Active Gate', ur: 'گیٹ تبدیل کریں' },
+  no_gate_assigned: { en: 'No Gate Assigned', ur: 'کوئی گیٹ تفویض نہیں' },
+  no_gate_assigned_desc: {
+    en: 'No gate is assigned to your Operator account. Please contact an Administrator to assign a gate before checking in visitors.',
+    ur: 'آپ کے آپریٹر اکاؤنٹ کو کوئی گیٹ تفویض نہیں کیا گیا۔ براہ کرم وزیٹرز کی انٹری سے پہلے ایڈمنسٹریٹر سے گیٹ تفویض کروائیں۔',
+  },
   gate_control_dashboard: { en: 'Gate Control Dashboard', ur: 'گیٹ کنٹرول ڈیش بورڈ' },
   gate_control_subtitle: {
     en: 'Live visitor tracking, instant CNIC & Driving License OCR check-in, and security access logs.',
@@ -34,8 +39,14 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   checkout_visitor_desc: { en: 'Scan QR or enter pass', ur: 'کیو آر کوڈ یا پاس سے باہر بھیجیں' },
   check_status: { en: 'Check Visitor Status', ur: 'وزیٹر کی تفصیل دیکھیں' },
   check_status_desc: { en: 'Search badge or phone', ur: 'نام، کارڈ یا فون سے تلاش کریں' },
-  add_vendor: { en: 'Special Guest', ur: 'خاص مہمان' },
-  add_vendor_desc: { en: 'VIP & special guest entry', ur: 'خاص مہمان کی انٹری' },
+  add_vendor: { en: 'Guest', ur: 'مہمان' },
+  add_vendor_desc: { en: 'Invited guest check-in', ur: 'مدعو مہمان کی انٹری' },
+  guest_option_title: { en: 'Guest', ur: 'مہمان' },
+  guest_option_desc: { en: 'Invited guest check-in', ur: 'مدعو مہمان کی انٹری' },
+  parcel_tracker_title: { en: 'Parcel Tracker', ur: 'پارسل ٹریکر' },
+  parcel_tracker_desc: { en: 'Expected & received parcels', ur: 'متوقع اور موصول شدہ پارسل' },
+  vip_guest_title: { en: 'VIP Guest', ur: 'وی آئی پی مہمان' },
+  vip_guest_desc: { en: 'VIP arrival & vehicle check-in', ur: 'وی آئی پی آمد اور گاڑی چیک اِن' },
 
   // Action Buttons
   add_visitor_btn: { en: '+ Add Visitor', ur: '+ نیا وزیٹر' },
@@ -55,7 +66,7 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   overstay_alerts: { en: 'Overstay Alerts (>8h)', ur: 'وقت سے زیادہ اندر موجود (>8 گھنٹے)' },
   vendors: { en: 'Vendors', ur: 'وینڈرز' },
   interviews: { en: 'Interviews', ur: 'انٹرویو والے' },
-  special_guests: { en: 'Special Guests', ur: 'خاص مہمان' },
+  special_guests: { en: 'Guests', ur: 'مہمان' },
   contractors: { en: 'Contractors', ur: 'ٹھیکیدار / ورکرز' },
   deliveries: { en: 'Deliveries', ur: 'ڈلیوری والے' },
   live_indicator: { en: 'Live', ur: 'لائیو' },
@@ -108,8 +119,8 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
     ur: 'فوری موبائل لاگ ان • پاس ورڈ کی ضرورت نہیں',
   },
   login_footer: {
-    en: 'Gate Keeper v2.0 • Checkpoint Access Control',
-    ur: 'گیٹ کیپر v2.0 • سیکیورٹی چیک پوائنٹ سسٹم',
+    en: 'GateShield • Checkpoint Access Control',
+    ur: 'گیٹ شیلڈ • سیکیورٹی چیک پوائنٹ سسٹم',
   },
   starting_camera: { en: 'Starting Camera...', ur: 'کیمرہ کھل رہا ہے...' },
   qr_code_detected: { en: 'QR Code Detected', ur: 'کیو آر کوڈ اسکین ہو گیا' },
@@ -190,7 +201,8 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   cat_visitor: { en: 'Visitor', ur: 'عام وزیٹر' },
   cat_vendor: { en: 'Vendor', ur: 'وینڈر / سپلائر' },
   cat_interview: { en: 'Interview', ur: 'انٹرویو امیدوار' },
-  cat_special_guest: { en: 'Special Guest', ur: 'خاص مہمان' },
+  cat_special_guest: { en: 'Guest', ur: 'مہمان' },
+  cat_parcel: { en: 'Parcel', ur: 'پارسل' },
   cat_contractor: { en: 'Contractor', ur: 'ٹھیکیدار / ورکر' },
   cat_delivery: { en: 'Delivery', ur: 'ڈلیوری / کوریئر' },
 
@@ -265,10 +277,15 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
     ur: 'اسکین نہیں ہوا، دوبارہ اسکین کریں۔',
   },
   scan_failed_subtitle: {
-    en: 'Hold the card steady in good light inside the frame and try again.',
-    ur: 'کارڈ کو روشنی میں سیدھا رکھ کر دوبارہ تصویر لیں۔',
+    en: 'No readable ID details could be extracted. Please retry with the camera or upload a clearer image.',
+    ur: 'کارڈ سے قابلِ مطالعہ معلومات حاصل نہیں ہو سکیں۔ براہ کرم کیمرے سے دوبارہ کوشش کریں یا واضح تصویر اپ لوڈ کریں۔',
+  },
+  scan_service_error_subtitle: {
+    en: 'Unable to connect to the OCR scanning service. Please try scanning again or upload an image.',
+    ur: 'اسکیننگ سروس سے رابطہ نہیں ہو سکا۔ براہ کرم دوبارہ کوشش کریں یا تصویر اپ لوڈ کریں۔',
   },
   scan_again_btn: { en: 'Scan Again', ur: 'دوبارہ اسکین کریں' },
+  upload_id_image_btn: { en: 'Upload Image', ur: 'تصویر اپ لوڈ کریں' },
 
   // Step 4: Review Scanned Details
   scan_success_badge: { en: '✓ Scan Complete', ur: '✓ اسکین مکمل ہوگیا' },
@@ -434,8 +451,8 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
 
   // ── Branded Loading Messages ──
   loading_gatekeeper: {
-    en: 'Loading Gate Keeper...',
-    ur: 'گیٹ کیپر لوڈ ہو رہا ہے...',
+    en: 'Loading GateShield...',
+    ur: 'گیٹ شیلڈ لوڈ ہو رہا ہے...',
   },
   loading_dashboard: {
     en: 'Loading dashboard...',
@@ -473,7 +490,7 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   },
   emp_department: {
     en: 'Department',
-    ur: 'شعبہ (ڈیپارٹمنٹ)',
+    ur: 'شعبہ',
   },
   emp_position: {
     en: 'Position / Designation',
@@ -524,8 +541,8 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
     ur: 'مہمان کو مدعو کریں',
   },
   emp_action_invite_guest_desc: {
-    en: 'Pre-register an upcoming guest and assign an available visitor card',
-    ur: 'آنے والے مہمان کا اندراج کریں اور دستیاب وزیٹر کارڈ تفویض کریں',
+    en: 'Pre-register an upcoming guest for gate check-in',
+    ur: 'گیٹ چیک اِن کے لیے آنے والے مہمان کا اندراج کریں',
   },
   emp_action_visited_guests: {
     en: 'Visited Guests',
@@ -544,32 +561,48 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
     ur: 'مہمان کا فون نمبر',
   },
   emp_guest_card_no: {
-    en: 'Visitor Card Number',
+    en: 'VC Card No.',
     ur: 'وزیٹر کارڈ نمبر',
   },
+  emp_guest_cnic: {
+    en: 'CNIC',
+    ur: 'شناختی کارڈ نمبر',
+  },
   emp_guest_cnic_optional: {
-    en: 'CNIC Number (Optional)',
-    ur: 'شناختی کارڈ نمبر (اختیاری)',
+    en: 'CNIC',
+    ur: 'شناختی کارڈ نمبر',
+  },
+  emp_guest_photo: {
+    en: 'Guest Photo',
+    ur: 'مہمان کی تصویر',
   },
   emp_guest_photo_optional: {
-    en: 'Guest Photo (Optional)',
-    ur: 'مہمان کی تصویر (اختیاری)',
+    en: 'Guest Photo',
+    ur: 'مہمان کی تصویر',
   },
   emp_visit_date: {
     en: 'Visit Date',
     ur: 'ملاقات کی تاریخ',
   },
   emp_expected_arrival: {
-    en: 'Expected Arrival Time',
-    ur: 'متوقع آمد کا وقت',
+    en: 'Arrival Time',
+    ur: 'آمد کا وقت',
   },
   emp_expected_window: {
-    en: 'Expected Visit Duration / Window',
-    ur: 'ملاقات کا متوقع دورانیہ / وقت',
+    en: 'Arrival Time',
+    ur: 'آمد کا وقت',
+  },
+  estimated_arrival_slot: {
+    en: 'Arrival Time',
+    ur: 'آمد کا وقت',
+  },
+  visit_duration_label: {
+    en: 'Visit Duration',
+    ur: 'ملاقات کا دورانیہ',
   },
   emp_create_invitation_btn: {
-    en: 'Send Guest Invitation to Gates',
-    ur: 'مہمان کا دعوت نامہ تمام گیٹس کو بھیجیں',
+    en: 'Send Guest Invitation',
+    ur: 'دعوت نامہ بھیجیں',
   },
   emp_reinvite_btn: {
     en: 'Re-invite',
@@ -580,47 +613,160 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
     ur: 'مہمانوں کی آمد کی اطلاعات',
   },
 
-  // ── Operator Shared Upcoming Guests ──
+  // ── Operator Shared Guests / Invited Guests ──
   upcoming_guests_title: {
-    en: 'Upcoming Invited Guests',
-    ur: 'مدعو کردہ متوقع مہمان',
+    en: 'Guest List',
+    ur: 'مہمانوں کی فہرست',
   },
   upcoming_guests_subtitle: {
-    en: 'Shared across all gates — check in invited guests upon arrival',
-    ur: 'تمام گیٹس کے لیے مشترکہ فہرست — مہمان کی آمد پر چیک اِن کریں',
+    en: 'Select an invited guest and assign a VC Card No. to complete check-in',
+    ur: 'مہمان منتخب کریں اور کارڈ نمبر دے کر چیک اِن مکمل کریں',
   },
   upcoming_guests_btn: {
-    en: 'Upcoming Guests',
-    ur: 'متوقع مہمان',
+    en: 'Guest',
+    ur: 'مہمان',
+  },
+  upcoming_guests_search_placeholder: {
+    en: 'Search by guest name or inviting employee...',
+    ur: 'مہمان یا میزبان کے نام سے تلاش کریں...',
+  },
+  special_guest_search_placeholder: {
+    en: 'Search by guest name or inviting employee...',
+    ur: 'مہمان یا میزبان کے نام سے تلاش کریں...',
   },
   upcoming_guests_empty: {
     en: 'No pending guest invitations right now.',
     ur: 'اس وقت کوئی متوقع مہمان زیرِ التواء نہیں ہے۔',
   },
   invited_by_host: {
-    en: 'Invited By (Host)',
-    ur: 'میزبان (مدعو کرنے والا)',
+    en: 'Inviting Employee',
+    ur: 'میزبان',
+  },
+  inviting_employee_label: {
+    en: 'Inviting Employee',
+    ur: 'میزبان',
   },
   expected_schedule: {
-    en: 'Expected Date & Window',
-    ur: 'متوقع تاریخ اور وقت',
+    en: 'Arrival Time',
+    ur: 'آمد کا وقت',
   },
-  preassigned_card: {
-    en: 'Preassigned Visitor Card',
-    ur: 'پہلے سے مختص وزیٹر کارڈ',
+  enter_vc_card_no: {
+    en: 'VC Card No.',
+    ur: 'وزیٹر کارڈ نمبر',
+  },
+  enter_vc_card_hint: {
+    en: 'Assign an available physical visitor card to complete check-in',
+    ur: 'چیک اِن مکمل کرنے کے لیے دستیاب وزیٹر کارڈ نمبر درج کریں',
+  },
+  not_provided_optional: {
+    en: 'Not provided',
+    ur: 'فراہم نہیں کیا گیا',
+  },
+  select_guest_btn: {
+    en: 'Select & Assign Card',
+    ur: 'منتخب کریں اور کارڈ دیں',
   },
   verify_and_checkin_btn: {
-    en: 'Verify & Check In Guest',
-    ur: 'تصدیق اور چیک اِن کریں',
+    en: 'Select & Assign Card',
+    ur: 'منتخب کریں اور کارڈ دیں',
   },
   confirm_guest_checkin_title: {
-    en: 'Confirm Invited Guest Check-In',
-    ur: 'مدعو مہمان کے چیک اِن کی تصدیق کریں',
+    en: 'Guest Details & Card Assignment',
+    ur: 'مہمان کی تفصیل اور کارڈ اجرا',
   },
   new_guest_invitation_alert: {
-    en: 'New Upcoming Guest Invitation Received!',
-    ur: 'نئے متوقع مہمان کا دعوت نامہ موصول ہوا ہے!',
+    en: 'New Guest Invitation',
+    ur: 'نئے مہمان کا دعوت نامہ',
   },
+  along_with_label: {
+    en: 'Along With',
+    ur: 'ہمراہ افراد',
+  },
+  along_with_placeholder: {
+    en: 'Accompanying persons (if any)',
+    ur: 'ہمراہ آنے والے افراد (اگر کوئی ہوں)',
+  },
+
+  // ── Sidebar Navigation & Admin Menu ──
+  nav_dashboard: { en: 'Dashboard', ur: 'ڈیش بورڈ' },
+  nav_visitors: { en: 'Visitors & Logs', ur: 'وزیٹرز اور ریکارڈز' },
+  nav_guest: { en: 'Guest', ur: 'مہمان' },
+  nav_parcel_tracker: { en: 'Parcel Tracker', ur: 'پارسل ٹریکر' },
+  nav_vip_guest: { en: 'VIP Guest', ur: 'وی آئی پی مہمان' },
+  nav_operators: { en: 'Operators', ur: 'آپریٹرز' },
+  nav_employees: { en: 'Employees', ur: 'ملازمین' },
+  nav_departments: { en: 'Departments', ur: 'شعبے' },
+  nav_gates: { en: 'Gates & Checkpoints', ur: 'گیٹس اور چیک پوائنٹس' },
+  nav_reports: { en: 'Reports & Export', ur: 'رپورٹس اور ایکسپورٹ' },
+  nav_audit_logs: { en: 'Audit Logs', ur: 'آڈٹ لاگز' },
+  nav_settings: { en: 'System Settings', ur: 'سسٹم سیٹنگز' },
+  nav_Administration: { en: 'Administration', ur: 'ایڈمنسٹریشن' },
+
+  // ── Notifications ──
+  notifications_title: { en: 'Notifications', ur: 'اطلاعات' },
+  mark_all_read: { en: 'Mark all read', ur: 'سب پڑھی ہوئی کریں' },
+  no_notifications: { en: 'No notifications yet', ur: 'ابھی کوئی اطلاع نہیں ہے' },
+  new_badge: { en: 'New', ur: 'نئی' },
+  pending_operator_requests: { en: 'Operator Requests', ur: 'آپریٹر درخواستیں' },
+  pending_employee_requests: { en: 'Employee Requests', ur: 'ملازمین کی درخواستیں' },
+
+  // ── Parcel Management & Unexpected Parcel Form ──
+  parcel_management_title: { en: 'Parcel Tracker', ur: 'پارسل ٹریکر' },
+  register_unexpected_parcel: { en: '+ Unexpected Parcel', ur: '+ غیر متوقع پارسل' },
+  unexpected_parcel_title: { en: 'Unexpected Parcel', ur: 'غیر متوقع پارسل' },
+  employee_label: { en: 'Employee', ur: 'ملازم' },
+  select_employee_placeholder: { en: 'Select Employee', ur: 'ملازم منتخب کریں' },
+  search_employee_placeholder: { en: 'Search employee name...', ur: 'ملازم کا نام تلاش کریں...' },
+  parcel_from_label: { en: 'Parcel From', ur: 'پارسل بھیجنے والا' },
+  select_parcel_from: { en: 'Select Sender', ur: 'بھیجنے والا منتخب کریں' },
+  other_sender_label: { en: 'Sender Name', ur: 'بھیجنے والے کا نام' },
+  other_sender_placeholder: { en: 'Enter sender name', ur: 'بھیجنے والے کا نام لکھیں' },
+  parcel_photo_label: { en: 'Parcel Photo', ur: 'پارسل کی تصویر' },
+  open_camera_btn: { en: 'Open Camera', ur: 'کیمرہ کھولیں' },
+  capture_parcel_photo_btn: { en: 'Capture Photo', ur: 'تصویر لیں' },
+  receive_parcel_btn: { en: 'Receive Parcel', ur: 'پارسل وصول کریں' },
+  deliver_parcel_btn: { en: 'Mark Delivered', ur: 'حوالے کریں (ڈیلیور)' },
+  expected_parcels_tab: { en: 'Expected', ur: 'متوقع پارسل' },
+  received_parcels_tab: { en: 'Received at Gate', ur: 'گیٹ پر موصول' },
+  delivered_parcels_tab: { en: 'Delivered', ur: 'حوالے شدہ' },
+  all_parcels_tab: { en: 'All Parcels', ur: 'تمام پارسل' },
+  source_expected: { en: 'Expected', ur: 'متوقع' },
+  source_unexpected: { en: 'Unexpected', ur: 'غیر متوقع' },
+  status_expected: { en: 'Expected', ur: 'متوقع' },
+  status_received: { en: 'Received', ur: 'موصول شدہ' },
+  status_delivered: { en: 'Delivered', ur: 'حوالے شدہ' },
+  arrival_date_label: { en: 'Arrival Date', ur: 'آمد کی تاریخ' },
+  receiving_gate_label: { en: 'Receiving Gate', ur: 'وصولی کا گیٹ' },
+  delivery_gate_label: { en: 'Delivery Gate', ur: 'حوالگی کا گیٹ' },
+  notes_label: { en: 'Notes', ur: 'نوٹس' },
+  notes_placeholder: { en: 'Additional details', ur: 'مزید تفصیل' },
+  add_parcel_reminder_title: { en: 'Add Parcel Reminder', ur: 'پارسل ریمائنڈر شامل کریں' },
+  save_parcel_reminder_btn: { en: 'Save Parcel Reminder', ur: 'پارسل ریمائنڈر محفوظ کریں' },
+  arrived_parcels_title: { en: 'Arrived Parcels', ur: 'موصول شدہ پارسل' },
+  my_parcel_reminders_title: { en: 'Expected Reminders', ur: 'متوقع پارسل ریمائنڈرز' },
+
+  // ── VIP Guest List & Management ──
+  vip_guest_list_title: { en: 'VIP Guest List', ur: 'وی آئی پی مہمانوں کی فہرست' },
+  add_vip_guest_btn: { en: '+ Add VIP Guest', ur: '+ نیا وی آئی پی مہمان' },
+  edit_vip_guest_title: { en: 'Edit VIP Guest', ur: 'وی آئی پی مہمان میں ترمیم' },
+  new_vip_guest_title: { en: 'Add VIP Guest', ur: 'نیا وی آئی پی مہمان شامل کریں' },
+  vip_name_label: { en: 'VIP Name', ur: 'وی آئی پی مہمان کا نام' },
+  vip_designation_label: { en: 'Designation', ur: 'عہدہ' },
+  vip_vehicle_label: { en: 'Vehicle Number', ur: 'گاڑی کا نمبر' },
+  vip_planned_arrival_label: { en: 'Planned Arrival Time', ur: 'آمد کا مقررہ وقت' },
+  vip_search_placeholder: {
+    en: 'Search by VIP name, vehicle number, or designation...',
+    ur: 'نام، گاڑی نمبر، یا عہدے سے تلاش کریں...',
+  },
+  vip_status_upcoming: { en: 'Upcoming', ur: 'متوقع آمد' },
+  vip_status_checked_in: { en: 'Inside', ur: 'اندر موجود' },
+  vip_status_checked_out: { en: 'Checked Out', ur: 'باہر گئے' },
+  vip_checkin_btn: { en: 'Check In VIP', ur: 'چیک اِن کریں' },
+  vip_checkout_btn: { en: 'Check Out VIP', ur: 'چیک آؤٹ کریں' },
+  save_vip_btn: { en: 'Save VIP Guest', ur: 'وی آئی پی محفوظ کریں' },
+  update_vip_btn: { en: 'Update VIP Guest', ur: 'وی آئی پی اپ ڈیٹ کریں' },
+  cancel_btn: { en: 'Cancel', ur: 'منسوخ کریں' },
+  no_vip_found: { en: 'No VIP guests found.', ur: 'کوئی وی آئی پی مہمان نہیں ملا۔' },
 };
 
 const LanguageContext = createContext<LanguageContextType>({
@@ -646,6 +792,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     setLanguageState(lang);
     localStorage.setItem('gk_lang', lang);
   };
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = language;
+      document.documentElement.dir = language === 'ur' ? 'rtl' : 'ltr';
+    }
+  }, [language]);
 
   const toggleLanguage = () => {
     const next: Language = language === 'ur' ? 'en' : 'ur';

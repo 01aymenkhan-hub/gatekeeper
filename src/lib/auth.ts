@@ -7,6 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'gatekeeper_secret_jwt_key_2026';
 const TOKEN_COOKIE_NAME = 'gk_token';
 const EMPLOYEE_TOKEN_COOKIE_NAME = 'gk_emp_token';
 const EMPLOYEE_STATUS_COOKIE_NAME = 'gk_emp_applicant';
+const OPERATOR_STATUS_COOKIE_NAME = 'gk_op_applicant';
 
 export type UserRole = 'ADMIN' | 'OPERATOR' | 'EMPLOYEE';
 export type EmployeeApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -17,6 +18,23 @@ export interface AuthUser {
   name: string;
   role: 'ADMIN' | 'OPERATOR';
   gateIds?: string[];
+}
+
+export interface OperatorApplicantUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'OPERATOR';
+  approvalStatus: EmployeeApprovalStatus;
+  phoneNumber: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  operatorNumber: string | null;
+  active: boolean;
+  approvedAt?: Date | string | null;
+  rejectedAt?: Date | string | null;
+  rejectionReason?: string | null;
+  createdAt?: Date | string;
 }
 
 export interface EmployeeAuthUser {
@@ -128,7 +146,7 @@ export function verifyEmployeeToken(
 
 /**
  * Staff session check (ADMIN or OPERATOR only).
- * Automatically blocks EMPLOYEE accounts from accessing Admin or Operator routes.
+ * Automatically blocks EMPLOYEE accounts and any PENDING/REJECTED/inactive OPERATOR accounts.
  */
 export async function getSessionUser(): Promise<AuthUser | null> {
   try {
@@ -139,16 +157,29 @@ export async function getSessionUser(): Promise<AuthUser | null> {
     if (!decoded || !decoded.id) return null;
 
     const rows = await prisma.$queryRaw<
-      Array<{ id: string; email: string; name: string; role: string; active: boolean }>
+      Array<{
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+        active: boolean;
+        approvalStatus: string;
+      }>
     >`
-      SELECT "id", "email", "name", "role"::text AS "role", "active"
+      SELECT
+        "id",
+        "email",
+        "name",
+        "role"::text AS "role",
+        "active",
+        COALESCE("approvalStatus"::text, 'APPROVED') AS "approvalStatus"
       FROM "users"
       WHERE "id" = ${decoded.id}
       LIMIT 1
     `;
 
     const dbUser = rows[0];
-    if (!dbUser || !dbUser.active) {
+    if (!dbUser || !dbUser.active || dbUser.approvalStatus !== 'APPROVED') {
       return null;
     }
 
@@ -162,6 +193,121 @@ export async function getSessionUser(): Promise<AuthUser | null> {
       name: dbUser.name,
       email: dbUser.email,
       role: dbUser.role,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function generateOperatorApplicantToken(user: {
+  id: string;
+  email: string;
+  name: string;
+}): string {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: 'OPERATOR',
+      purpose: 'OPERATOR_APPLICANT_STATUS',
+    },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+}
+
+export function verifyOperatorApplicantToken(
+  token: string
+): { id: string; email: string; name: string; role: 'OPERATOR'; purpose?: string } | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+      purpose?: string;
+    };
+    if (!decoded || !decoded.id || decoded.role !== 'OPERATOR') return null;
+    return {
+      id: decoded.id,
+      email: decoded.email,
+      name: decoded.name,
+      role: 'OPERATOR',
+      purpose: decoded.purpose,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function getOperatorApplicantFromCookies(): Promise<OperatorApplicantUser | null> {
+  try {
+    const cookieStore = await cookies();
+    const rawToken = cookieStore.get(OPERATOR_STATUS_COOKIE_NAME)?.value;
+    if (!rawToken) return null;
+
+    const decoded = verifyOperatorApplicantToken(rawToken);
+    if (!decoded || !decoded.id) return null;
+
+    const rows = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        email: string;
+        name: string;
+        role: string;
+        active: boolean;
+        approvalStatus: EmployeeApprovalStatus;
+        phoneNumber: string | null;
+        departmentId: string | null;
+        departmentName: string | null;
+        operatorNumber: string | null;
+        approvedAt: Date | null;
+        rejectedAt: Date | null;
+        rejectionReason: string | null;
+        createdAt: Date;
+      }>
+    >`
+      SELECT
+        "id",
+        "email",
+        "name",
+        "role"::text AS "role",
+        "active",
+        COALESCE("approvalStatus"::text, 'PENDING') AS "approvalStatus",
+        "phoneNumber",
+        "departmentId",
+        "departmentName",
+        "operatorNumber",
+        "approvedAt",
+        "rejectedAt",
+        "rejectionReason",
+        "createdAt"
+      FROM "users"
+      WHERE "id" = ${decoded.id}
+      LIMIT 1
+    `;
+
+    const dbUser = rows[0];
+    if (!dbUser || dbUser.role !== 'OPERATOR') {
+      return null;
+    }
+
+    return {
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.name,
+      role: 'OPERATOR',
+      approvalStatus: dbUser.approvalStatus,
+      phoneNumber: dbUser.phoneNumber,
+      departmentId: dbUser.departmentId,
+      departmentName: dbUser.departmentName,
+      operatorNumber: dbUser.operatorNumber,
+      active: dbUser.active,
+      approvedAt: dbUser.approvedAt,
+      rejectedAt: dbUser.rejectedAt,
+      rejectionReason: dbUser.rejectionReason,
+      createdAt: dbUser.createdAt,
     };
   } catch {
     return null;
@@ -311,4 +457,5 @@ export {
   TOKEN_COOKIE_NAME,
   EMPLOYEE_TOKEN_COOKIE_NAME,
   EMPLOYEE_STATUS_COOKIE_NAME,
+  OPERATOR_STATUS_COOKIE_NAME,
 };

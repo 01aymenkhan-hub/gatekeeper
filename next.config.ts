@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig = {
   allowedDevOrigins: [
-    "shy-glitter-professed.ngrok-free.dev",
+    "unworthy-undecided-cabana.ngrok-free.dev",
   ],
 };
 

@@ -91,6 +91,15 @@ export default function RegistrationSuccessModal({
 
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Check-in Status
+              </span>
+              <span className="text-[11px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
+                {visit.status === 'CHECKED_IN' || !visit.status ? 'CHECKED IN' : visit.status}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                 Visit To
               </span>
               <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
@@ -98,16 +107,23 @@ export default function RegistrationSuccessModal({
               </span>
             </div>
 
-            {visit.entryGate && (
-              <div className="flex items-center justify-between border-t border-slate-200/60 dark:border-slate-700/60 pt-2">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Entry Gate
-                </span>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  {visit.entryGate.name}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center justify-between border-t border-slate-200/60 dark:border-slate-700/60 pt-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Check-in Time &amp; Gate
+              </span>
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                {visit.timeIn
+                  ? new Date(visit.timeIn).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : new Date().toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                {visit.entryGate?.name ? ` • ${visit.entryGate.name}` : ''}
+              </span>
+            </div>
           </div>
 
           {/* Distinct ID Image Save Failure Notice & Retry */}
@@ -240,6 +256,19 @@ export default function RegistrationSuccessModal({
             }`}
           >
             <span className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400">
+              {t('checkin_status_label', 'Check-in Status')}
+            </span>
+            <span className="text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300">
+              {visit.status === 'CHECKED_IN' || !visit.status ? 'CHECKED IN' : visit.status}
+            </span>
+          </div>
+
+          <div
+            className={`flex items-center justify-between gap-2 ${
+              isUr ? 'flex-row-reverse' : 'flex-row'
+            }`}
+          >
+            <span className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400">
               {t('reg_visit_to')}
             </span>
             <span className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -247,20 +276,27 @@ export default function RegistrationSuccessModal({
             </span>
           </div>
 
-          {visit.entryGate && (
-            <div
-              className={`flex items-center justify-between gap-2 border-t border-slate-200/60 dark:border-slate-700/60 pt-2.5 ${
-                isUr ? 'flex-row-reverse' : 'flex-row'
-              }`}
-            >
-              <span className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400">
-                {t('reg_entry_gate')}
-              </span>
-              <span className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300">
-                {visit.entryGate.name}
-              </span>
-            </div>
-          )}
+          <div
+            className={`flex items-center justify-between gap-2 border-t border-slate-200/60 dark:border-slate-700/60 pt-2.5 ${
+              isUr ? 'flex-row-reverse' : 'flex-row'
+            }`}
+          >
+            <span className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400">
+              {t('checkin_time_label', 'Check-in Time')} / {t('reg_entry_gate')}
+            </span>
+            <span className="text-xs sm:text-sm font-extrabold text-slate-700 dark:text-slate-300">
+              {visit.timeIn
+                ? new Date(visit.timeIn).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : new Date().toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+              {visit.entryGate?.name ? ` • ${visit.entryGate.name}` : ''}
+            </span>
+          </div>
         </div>
 
         {/* Distinct ID Image Save Failure Notice & Retry */}

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Shield, Printer, RefreshCw, Ban, X, CheckCircle2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Printer, RefreshCw, Ban, X, CheckCircle2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import GateShieldLogo from '@/components/ui/GateShieldLogo';
 
 export interface OperatorQrCardData {
   id: string;
@@ -129,9 +130,7 @@ export default function OperatorQrCardModal({
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-blue-600 text-white shadow-xs">
-                <Shield className="w-4 h-4" />
-              </div>
+              <GateShieldLogo variant="icon" size="sm" />
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">Operator Access Card</h3>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">Print or manage login QR badge</p>
@@ -168,13 +167,11 @@ export default function OperatorQrCardModal({
               className="rounded-2xl border-2 border-slate-300 dark:border-slate-700 bg-white p-6 shadow-md text-slate-900 flex flex-col items-center text-center space-y-4"
             >
               {/* Card Header */}
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-200 w-full justify-center">
-                <div className="p-1.5 rounded-lg bg-blue-600 text-white">
-                  <Shield className="w-4 h-4" />
-                </div>
+              <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-200 w-full justify-center">
+                <GateShieldLogo variant="icon" size="sm" forceTheme="light" />
                 <div className="text-left">
-                  <h4 className="text-xs font-black tracking-wider uppercase text-slate-900 leading-tight">
-                    GATE KEEPER
+                  <h4 className="text-xs font-black tracking-tight text-[#2E4482] leading-tight">
+                    GateShield
                   </h4>
                   <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest leading-none">
                     Security Operator Badge
@@ -212,7 +209,7 @@ export default function OperatorQrCardModal({
               {/* Instructions on card */}
               <div className="space-y-1">
                 <p className="text-[11px] font-bold text-slate-800">
-                  Scan this QR code on the login screen to access Gatekeeper
+                  Scan this QR code on the login screen to access GateShield
                 </p>
                 <p className="text-[9px] text-slate-400 max-w-[280px]">
                   Authorized for assigned checkpoint gates • Valid until revoked • Keep badge secure

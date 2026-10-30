@@ -3,10 +3,6 @@ import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { getEmployeeSessionUser, getSessionUser } from '@/lib/auth';
 import { logAudit } from '@/lib/audit';
-import {
-  formatCardNoForStorage,
-  normalizeCardKey,
-} from '@/lib/cardUtils';
 
 export interface GuestInvitationRecord {
   id: string;
@@ -18,11 +14,12 @@ export interface GuestInvitationRecord {
   guestPhone: string;
   guestCnic: string | null;
   guestPhotoUrl: string | null;
-  visitorCardNo: string;
-  normalizedCardKey: string;
+  alongWith: string | null;
+  visitorCardNo: string | null;
+  normalizedCardKey: string | null;
   visitDate: string;
   expectedArrivalTime: string;
-  expectedDurationWindow: string;
+  expectedDurationWindow: string | null;
   status: 'PENDING' | 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED';
   visitId: string | null;
   visitNumber: string | null;
@@ -75,7 +72,8 @@ export async function GET() {
         gi."guestPhone",
         gi."guestCnic",
         gi."guestPhotoUrl",
-        gi."visitorCardNo",
+        gi."alongWith",
+        COALESCE(v."visitorCardNo", gi."visitorCardNo") AS "visitorCardNo",
         gi."normalizedCardKey",
         gi."visitDate",
         gi."expectedArrivalTime",
@@ -160,19 +158,18 @@ export async function POST(request: NextRequest) {
     const guestName =
       typeof body.guestName === 'string' ? body.guestName.trim().replace(/\s+/g, ' ') : '';
     const rawPhone = typeof body.guestPhone === 'string' ? body.guestPhone.trim() : '';
-    const rawCardNo = typeof body.visitorCardNo === 'string' ? body.visitorCardNo : '';
     const rawCnic = typeof body.guestCnic === 'string' ? body.guestCnic.trim() : '';
     const guestPhotoUrl =
       typeof body.guestPhotoUrl === 'string' && body.guestPhotoUrl.trim().length > 0
         ? body.guestPhotoUrl.trim()
         : null;
+    const alongWith =
+      typeof body.alongWith === 'string' && body.alongWith.trim().length > 0
+        ? body.alongWith.trim().replace(/\s+/g, ' ')
+        : null;
     const visitDate = typeof body.visitDate === 'string' ? body.visitDate.trim() : '';
     const expectedArrivalTime =
       typeof body.expectedArrivalTime === 'string' ? body.expectedArrivalTime.trim() : '';
-    const expectedDurationWindow =
-      typeof body.expectedDurationWindow === 'string'
-        ? body.expectedDurationWindow.trim()
-        : '';
     const idempotencyKey =
       typeof body.idempotencyKey === 'string' && body.idempotencyKey.trim()
         ? `${emp.id}_${body.idempotencyKey.trim().slice(0, 80)}`
@@ -190,15 +187,6 @@ export async function POST(request: NextRequest) {
     if (!cleanedPhone || cleanedPhone.length < 10 || cleanedPhone.length > 15) {
       return NextResponse.json(
         { error: 'Please enter a valid Phone Number for the guest.' },
-        { status: 400 }
-      );
-    }
-
-    const formattedCardNo = formatCardNoForStorage(rawCardNo);
-    const normalizedCardKey = normalizeCardKey(rawCardNo);
-    if (!formattedCardNo || !normalizedCardKey) {
-      return NextResponse.json(
-        { error: 'Visitor Card Number is required. Please enter an available physical card number.' },
         { status: 400 }
       );
     }
@@ -225,14 +213,7 @@ export async function POST(request: NextRequest) {
 
     if (!expectedArrivalTime) {
       return NextResponse.json(
-        { error: 'Expected Arrival Time is required.' },
-        { status: 400 }
-      );
-    }
-
-    if (!expectedDurationWindow) {
-      return NextResponse.json(
-        { error: 'Expected Visit Duration / Time Window is required.' },
+        { error: 'Arrival Time is required.' },
         { status: 400 }
       );
     }
@@ -253,7 +234,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Atomic transaction with advisory lock on card key to prevent duplicate card reservations
+    // Employees do NOT assign or reserve a visitor card number.
+    // The Gate Operator assigns the physical VC card when the guest arrives.
     const createdInvitation = await prisma.$transaction(async (tx) => {
       if (idempotencyKey) {
         const existingIdemp = await tx.$queryRaw<GuestInvitationRecord[]>`
@@ -267,6 +249,7 @@ export async function POST(request: NextRequest) {
             "guestPhone",
             "guestCnic",
             "guestPhotoUrl",
+            "alongWith",
             "visitorCardNo",
             "normalizedCardKey",
             "visitDate",
@@ -294,60 +277,11 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const lockKey = `gk_card_${normalizedCardKey}`;
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
-
-      // 1. Check active visits holding this card
-      const activeVisitsWithCards = await tx.visit.findMany({
-        where: {
-          status: { in: ['CHECKED_IN', 'OVERSTAY'] },
-          checkOutTime: null,
-          visitorCardNo: { not: null },
-        },
-        select: {
-          id: true,
-          visitorCardNo: true,
-        },
-      });
-
-      const activeConflict = activeVisitsWithCards.find(
-        (v) => v.visitorCardNo && normalizeCardKey(v.visitorCardNo) === normalizedCardKey
-      );
-
-      if (activeConflict) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const err: any = new Error(
-          'This Visitor Card Number is currently assigned to an active visitor inside the facility. Please enter another available card number.'
-        );
-        err.status = 409;
-        err.code = 'CARD_ALREADY_ASSIGNED';
-        throw err;
-      }
-
-      // 2. Check pending invitations holding this card
-      const pendingConflict = await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id"
-        FROM "guest_invitations"
-        WHERE "status"::text = 'PENDING'
-          AND "normalizedCardKey" = ${normalizedCardKey}
-        LIMIT 1
-      `;
-
-      if (pendingConflict.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const err: any = new Error(
-          'This Visitor Card Number is already preassigned to another upcoming invited guest. Please enter another available card number.'
-        );
-        err.status = 409;
-        err.code = 'CARD_ALREADY_ASSIGNED';
-        throw err;
-      }
-
       const newId = `inv_${crypto.randomBytes(12).toString('hex')}`;
       const deptName = emp.departmentName || 'General';
       const now = new Date();
 
-      // NOTE: No gate is assigned on creation (entryGateId and entryGateName are NULL)
+      // NOTE: No gate and no card are assigned on creation (entryGateId, entryGateName, visitorCardNo, normalizedCardKey are NULL)
       await tx.$executeRaw`
         INSERT INTO "guest_invitations" (
           "id",
@@ -359,6 +293,7 @@ export async function POST(request: NextRequest) {
           "guestPhone",
           "guestCnic",
           "guestPhotoUrl",
+          "alongWith",
           "visitorCardNo",
           "normalizedCardKey",
           "visitDate",
@@ -380,11 +315,12 @@ export async function POST(request: NextRequest) {
           ${cleanedPhone},
           ${cleanedCnic},
           ${guestPhotoUrl},
-          ${formattedCardNo},
-          ${normalizedCardKey},
+          ${alongWith},
+          NULL,
+          NULL,
           ${visitDate},
           ${expectedArrivalTime},
-          ${expectedDurationWindow},
+          ${expectedArrivalTime},
           'PENDING'::"InvitationStatus",
           ${idempotencyKey},
           ${reinvitedFromId},
@@ -412,8 +348,8 @@ export async function POST(request: NextRequest) {
           ${notifId},
           'OPERATOR',
           'NEW_INVITATION',
-          'New Upcoming Guest Invitation',
-          ${`${guestName} invited by ${emp.name} (${deptName}) • Card ${formattedCardNo} • ${visitDate} at ${expectedArrivalTime}`},
+          'New Guest Invitation',
+          ${`${guestName} invited by ${emp.name} (${deptName}) • ${visitDate} (${expectedArrivalTime})`},
           ${newId},
           ${dedupeKey},
           false,
@@ -433,6 +369,7 @@ export async function POST(request: NextRequest) {
           "guestPhone",
           "guestCnic",
           "guestPhotoUrl",
+          "alongWith",
           "visitorCardNo",
           "normalizedCardKey",
           "visitDate",
@@ -465,10 +402,8 @@ export async function POST(request: NextRequest) {
       details: {
         guestName,
         guestPhone: cleanedPhone,
-        visitorCardNo: formattedCardNo,
         visitDate,
         expectedArrivalTime,
-        expectedDurationWindow,
         employeeName: emp.name,
         departmentName: emp.departmentName,
         reinvitedFromId,

@@ -17,7 +17,35 @@ export async function GET(request: NextRequest) {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-    const gateFilter = gateId && gateId !== 'ALL' ? { entryGateId: gateId } : {};
+    let gateFilter: { entryGateId?: string | { in: string[] } } = {};
+    let exitGateFilter: { exitGateId?: string | { in: string[] } } = {};
+
+    if (user.role === 'OPERATOR') {
+      const operatorGateAccess = await prisma.userGateAccess.findMany({
+        where: { userId: user.id },
+        include: { gate: true },
+      });
+      const assignedGateIds = operatorGateAccess
+        .filter((ga) => ga.gate && ga.gate.active)
+        .map((ga) => ga.gateId);
+
+      if (gateId && gateId !== 'ALL') {
+        if (!assignedGateIds.includes(gateId)) {
+          return NextResponse.json(
+            { error: 'You are not authorized to access dashboard stats for the selected gate.' },
+            { status: 403 }
+          );
+        }
+        gateFilter = { entryGateId: gateId };
+        exitGateFilter = { exitGateId: gateId };
+      } else {
+        gateFilter = { entryGateId: { in: assignedGateIds } };
+        exitGateFilter = { exitGateId: { in: assignedGateIds } };
+      }
+    } else if (gateId && gateId !== 'ALL') {
+      gateFilter = { entryGateId: gateId };
+      exitGateFilter = { exitGateId: gateId };
+    }
 
     // 1. Total visits today
     const totalToday = await prisma.visit.count({
@@ -40,7 +68,7 @@ export async function GET(request: NextRequest) {
       where: {
         status: 'CHECKED_OUT',
         checkOutTime: { gte: startOfToday, lte: endOfToday },
-        ...(gateId && gateId !== 'ALL' ? { exitGateId: gateId } : {}),
+        ...exitGateFilter,
       },
     });
 

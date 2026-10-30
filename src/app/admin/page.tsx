@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield, Lock, Mail, AlertCircle, ArrowRight, QrCode } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, QrCode } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import GateShieldLogo from '@/components/ui/GateShieldLogo';
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('admin@gatekeeper.com');
@@ -73,13 +74,8 @@ export default function AdminLoginPage() {
 
       <div className="w-full max-w-md relative z-10 space-y-6">
         {/* Brand Card */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-blue-600 text-white shadow-xl shadow-blue-500/20 mb-2">
-            <Shield className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-            GATE KEEPER
-          </h1>
+        <div className="text-center space-y-2 flex flex-col items-center">
+          <GateShieldLogo variant="full" size="lg" className="mb-1" />
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
             Enterprise Visitor &amp; Gate Access Control System
           </p>
@@ -178,7 +174,7 @@ export default function AdminLoginPage() {
 
         {/* Footer */}
         <p className="text-center text-[11px] text-slate-500 dark:text-slate-500 font-medium">
-          Gate Keeper v2.0 • Secured with Single-Tenant Database &amp; Audit Logging
+          GateShield • Secured with Single-Tenant Database &amp; Audit Logging
         </p>
       </div>
     </div>

@@ -5,7 +5,37 @@ import { logAudit } from '@/lib/audit';
 
 export async function GET() {
   try {
-    const gates = await prisma.gate.findMany({
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (user.role === 'ADMIN') {
+      const gates = await prisma.gate.findMany({
+        orderBy: { name: 'asc' },
+        include: {
+          _count: {
+            select: {
+              entryVisits: true,
+              exitVisits: true,
+            },
+          },
+        },
+      });
+
+      return NextResponse.json({ success: true, gates });
+    }
+
+    // For OPERATOR users: return ONLY active gates explicitly assigned to this Operator
+    const assignedGates = await prisma.gate.findMany({
+      where: {
+        active: true,
+        userAccess: {
+          some: {
+            userId: user.id,
+          },
+        },
+      },
       orderBy: { name: 'asc' },
       include: {
         _count: {
@@ -17,7 +47,7 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ success: true, gates });
+    return NextResponse.json({ success: true, gates: assignedGates });
   } catch (error: any) {
     console.error('Error fetching gates:', error);
     return NextResponse.json({ error: error.message || 'Failed to fetch gates' }, { status: 500 });

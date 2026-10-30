@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth, Gate } from '@/context/AuthContext';
 import { useLayout } from '@/context/LayoutContext';
 import { useLanguage } from '@/context/LanguageContext';
@@ -18,8 +19,21 @@ import {
   Check,
   Languages,
   User,
+  Bell,
+  CheckCheck,
+  X,
 } from 'lucide-react';
 import { IconLogoutDoor } from '@/components/icons/OperatorTaskIcons';
+
+interface HeaderNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  targetUrl?: string | null;
+  createdAt: string;
+}
 
 interface HeaderProps {
   onOpenCheckIn?: (category?: string) => void;
@@ -32,6 +46,7 @@ export default function Header({
   onOpenCheckOut,
   onOpenCheckStatus,
 }: HeaderProps) {
+  const router = useRouter();
   const { user, currentGate, setCurrentGate, theme, toggleTheme, logout } = useAuth();
   const { toggleMobileSidebar } = useLayout();
   const { language, toggleLanguage, t } = useLanguage();
@@ -42,9 +57,76 @@ export default function Header({
   const [currentDate, setCurrentDate] = useState<string>('');
   const [isGateOpen, setIsGateOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<HeaderNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [liveToast, setLiveToast] = useState<HeaderNotification | null>(null);
 
   const gateDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const notifDropdownRef = useRef<HTMLDivElement>(null);
+  const seenNotifIdsRef = useRef<Set<string>>(new Set());
+  const isFirstNotifLoadRef = useRef(true);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await fetch('/api/notifications?limit=25', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const fetched: HeaderNotification[] = Array.isArray(data.notifications) ? data.notifications : [];
+      setNotifications(fetched);
+      setUnreadCount(typeof data.unreadCount === 'number' ? data.unreadCount : 0);
+
+      if (isFirstNotifLoadRef.current) {
+        fetched.forEach((n) => seenNotifIdsRef.current.add(n.id));
+        isFirstNotifLoadRef.current = false;
+      } else {
+        const newestUnseen = fetched.find((n) => !n.isRead && !seenNotifIdsRef.current.has(n.id));
+        fetched.forEach((n) => seenNotifIdsRef.current.add(n.id));
+        if (newestUnseen) {
+          setLiveToast(newestUnseen);
+          setTimeout(() => {
+            setLiveToast((curr) => (curr?.id === newestUnseen.id ? null : curr));
+          }, 6000);
+        }
+      }
+    } catch {
+      // Ignore transient network errors
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    void fetchNotifications();
+    const interval = setInterval(() => {
+      void fetchNotifications();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [user, fetchNotifications]);
+
+  const handleMarkNotificationsRead = async (ids?: string[]) => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ids && ids.length > 0 ? { ids } : { markAll: true }),
+      });
+      await fetchNotifications();
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleClickNotification = async (notif: HeaderNotification) => {
+    if (!notif.isRead) {
+      await handleMarkNotificationsRead([notif.id]);
+    }
+    setIsNotifOpen(false);
+    if (notif.targetUrl) {
+      router.push(notif.targetUrl);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -54,11 +136,15 @@ export default function Header({
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
       }
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
+      }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsGateOpen(false);
         setIsProfileOpen(false);
+        setIsNotifOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -94,16 +180,27 @@ export default function Header({
   }, [language, isAdmin]);
 
   useEffect(() => {
+    if (!user) {
+      setGates([]);
+      return;
+    }
+
     const loadGates = async () => {
       try {
-        const res = await fetch('/api/gates');
+        const res = await fetch('/api/gates', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          if (data.gates) {
-            setGates(data.gates);
-            if (!currentGate && data.gates.length > 0) {
-              setCurrentGate(data.gates[0]);
+          const fetchedGates: Gate[] = Array.isArray(data.gates) ? data.gates : [];
+          setGates(fetchedGates);
+
+          if (user.role === 'OPERATOR') {
+            if (fetchedGates.length === 0) {
+              setCurrentGate(null);
+            } else if (!currentGate || !fetchedGates.some((g) => g.id === currentGate.id)) {
+              setCurrentGate(fetchedGates[0]);
             }
+          } else if (!currentGate && fetchedGates.length > 0 && !localStorage.getItem('gk_current_gate')) {
+            setCurrentGate(fetchedGates[0]);
           }
         }
       } catch (e) {
@@ -112,7 +209,7 @@ export default function Header({
     };
     loadGates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.id, user?.role]);
 
   const handleConfirmLogout = () => {
     if (window.confirm(t('confirm_logout', 'Are you sure you want to log out of the checkpoint?'))) {
@@ -124,8 +221,126 @@ export default function Header({
     (user as { operatorNumber?: string } | null)?.operatorNumber ||
     (user?.id ? `OP-${user.id.slice(-6).toUpperCase()}` : 'OP');
 
+  const renderNotificationBell = () => (
+    <div ref={notifDropdownRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsNotifOpen((prev) => !prev)}
+        className="relative p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer"
+        title={t('notifications_title', 'Notifications')}
+        aria-label={t('notifications_title', 'Notifications')}
+      >
+        <Bell className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isNotifOpen && (
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
+          <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/60 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-extrabold text-slate-900 dark:text-white">
+                {t('notifications_title', 'Notifications')}
+              </span>
+              {unreadCount > 0 && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={() => void handleMarkNotificationsRead()}
+                className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <CheckCheck className="w-3.5 h-3.5" />
+                {t('mark_all_read', 'Mark all read')}
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
+            {notifications.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-400 dark:text-slate-500">
+                {t('no_notifications', 'No notifications yet.')}
+              </div>
+            ) : (
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  onClick={() => void handleClickNotification(n)}
+                  className={`p-3.5 transition-colors cursor-pointer ${
+                    !n.isRead
+                      ? 'bg-blue-50/50 dark:bg-blue-950/30 hover:bg-blue-50 dark:hover:bg-blue-950/50'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white leading-snug">
+                      {n.title}
+                    </p>
+                    {!n.isRead && (
+                      <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0 mt-1" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                    {n.message}
+                  </p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5">
+                    {new Date(n.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <header className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-[#0c121e]/90 backdrop-blur-md px-3 sm:px-4 md:px-5 lg:px-6 flex items-center justify-between gap-2 sm:gap-3 md:gap-4 sticky top-0 z-30 no-print transition-colors">
+      {/* Live Real-Time Notification Toast Banner */}
+      {liveToast && (
+        <div
+          onClick={() => {
+            const toastNotif = liveToast;
+            setLiveToast(null);
+            void handleClickNotification(toastNotif);
+          }}
+          className="fixed top-20 right-4 z-50 max-w-sm w-full p-4 rounded-2xl border border-blue-200 dark:border-blue-800 bg-white dark:bg-slate-900 shadow-2xl cursor-pointer animate-in fade-in slide-in-from-top-3 duration-200"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <div className="p-2 rounded-xl bg-blue-600 text-white shrink-0 mt-0.5">
+                <Bell className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-extrabold text-slate-900 dark:text-white">
+                  {liveToast.title}
+                </p>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                  {liveToast.message}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLiveToast(null);
+              }}
+              className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Left: Mobile Menu Toggle + Gate Selector + Clock */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3.5 min-w-0">
@@ -156,20 +371,28 @@ export default function Header({
             {/* Desktop label & full name */}
             <div className={`hidden sm:block min-w-0 pr-1 ${!isAdmin && language === 'ur' ? 'text-right' : 'text-left'}`}>
               <div className={`flex items-center gap-1.5 leading-none mb-0.5 ${!isAdmin && language === 'ur' ? 'justify-end' : 'justify-start'}`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    !isAdmin && !currentGate
+                      ? 'bg-amber-500'
+                      : 'bg-emerald-500 animate-pulse'
+                  }`}
+                />
                 <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">
                   {isAdmin ? 'Active Gate' : t('active_gate', 'Active Gate')}
                 </span>
               </div>
               <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[110px] sm:max-w-[130px] md:max-w-[150px] lg:max-w-[130px] xl:max-w-[200px]">
-                {currentGate?.name || (isAdmin ? 'Select Gate' : t('select_gate', 'Select Gate'))}
+                {currentGate?.name ||
+                  (isAdmin ? 'All Gates' : t('no_gate_assigned', 'No Gate Assigned'))}
               </div>
             </div>
 
             {/* Mobile compact label */}
             <div className="sm:hidden flex items-center gap-1 pr-0.5">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[85px]">
-                {currentGate?.name?.split(' ')[0] || 'Gate'}
+                {currentGate?.name?.split(' ')[0] ||
+                  (isAdmin ? 'All Gates' : t('no_gate_assigned', 'No Gate'))}
               </span>
             </div>
 
@@ -185,75 +408,131 @@ export default function Header({
             <div className="absolute left-0 mt-2 w-72 sm:w-80 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
               <div className="p-3 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-850/60 flex items-center justify-between">
                 <span className="text-[11px] font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                  {isAdmin ? 'Switch Active Gate' : t('switch_gate', 'Switch Active Gate')}
+                  {isAdmin ? 'Switch Active Gate' : t('active_gate', 'Assigned Gate')}
                 </span>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
-                  {gates.length} {isAdmin ? 'Gates' : t('all_gates', 'Gates')}
+                  {gates.length} {gates.length === 1 ? 'Gate' : isAdmin ? 'Gates' : t('all_gates', 'Gates')}
                 </span>
               </div>
 
               <div className="p-1.5 max-h-64 overflow-y-auto space-y-1">
-                {gates.map((gate) => {
-                  const isSelected = currentGate?.id === gate.id;
-                  return (
-                    <button
-                      key={gate.id}
-                      type="button"
-                      onClick={() => {
-                        setCurrentGate(gate);
-                        setIsGateOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 shadow-2xs'
-                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                        <span
-                          className={`w-2 h-2 rounded-full shrink-0 ${
-                            isSelected
-                              ? 'bg-blue-600 ring-4 ring-blue-100 dark:ring-blue-950'
-                              : 'bg-slate-300 dark:bg-slate-700'
-                          }`}
-                        />
-                        <div className="min-w-0">
-                          <p
-                            className={`text-xs font-bold truncate ${
-                              isSelected
-                                ? 'text-blue-700 dark:text-blue-300'
-                                : 'text-slate-800 dark:text-slate-200'
-                            }`}
-                          >
-                            {gate.name}
-                          </p>
-                          {gate.description && (
-                            <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                              {gate.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span
-                          className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                            gate.type === 'ENTRY'
-                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                              : gate.type === 'EXIT'
-                              ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
-                              : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentGate(null);
+                      setIsGateOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                      !currentGate
+                        ? 'bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 shadow-2xs'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          !currentGate
+                            ? 'bg-blue-600 ring-4 ring-blue-100 dark:ring-blue-950'
+                            : 'bg-slate-300 dark:bg-slate-700'
+                        }`}
+                      />
+                      <div className="min-w-0">
+                        <p
+                          className={`text-xs font-bold truncate ${
+                            !currentGate
+                              ? 'text-blue-700 dark:text-blue-300'
+                              : 'text-slate-800 dark:text-slate-200'
                           }`}
                         >
-                          {gate.type}
-                        </span>
-                        {isSelected && (
-                          <Check className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                        )}
+                          All Gates
+                        </p>
+                        <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                          View activity across all configured checkpoints
+                        </p>
                       </div>
-                    </button>
-                  );
-                })}
+                    </div>
+                    {!currentGate && (
+                      <Check className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    )}
+                  </button>
+                )}
+
+                {!isAdmin && gates.length === 0 ? (
+                  <div className="p-3.5 text-center space-y-1">
+                    <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                      {t('no_gate_assigned', 'No Gate Assigned')}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                      {t(
+                        'no_gate_assigned_desc',
+                        'No gate is assigned to your Operator account. Please contact an Administrator to assign a gate.'
+                      )}
+                    </p>
+                  </div>
+                ) : (
+                  gates.map((gate) => {
+                    const isSelected = currentGate?.id === gate.id;
+                    return (
+                      <button
+                        key={gate.id}
+                        type="button"
+                        onClick={() => {
+                          setCurrentGate(gate);
+                          setIsGateOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 shadow-2xs'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              isSelected
+                                ? 'bg-blue-600 ring-4 ring-blue-100 dark:ring-blue-950'
+                                : 'bg-slate-300 dark:bg-slate-700'
+                            }`}
+                          />
+                          <div className="min-w-0">
+                            <p
+                              className={`text-xs font-bold truncate ${
+                                isSelected
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-slate-800 dark:text-slate-200'
+                              }`}
+                            >
+                              {gate.name}
+                            </p>
+                            {gate.description && (
+                              <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                {gate.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                              gate.type === 'ENTRY'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                                : gate.type === 'EXIT'
+                                ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
+                                : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
+                            }`}
+                          >
+                            {gate.type}
+                          </span>
+                          {isSelected && (
+                            <Check className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}
@@ -283,6 +562,20 @@ export default function Header({
       {isAdmin ? (
         /* ================= ORIGINAL ADMIN HEADER CONTROLS ================= */
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {renderNotificationBell()}
+
+          {/* Visible Language Switch Button (Urdu / English) */}
+          <button
+            onClick={toggleLanguage}
+            type="button"
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
+            title={language === 'ur' ? 'Switch to English' : 'اردو میں دیکھیں'}
+            aria-label="Switch Language"
+          >
+            <Languages className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span className="font-semibold">{language === 'ur' ? 'English' : 'اردو'}</span>
+          </button>
+
           {/* Quick Theme Toggle Button */}
           <button
             onClick={toggleTheme}
@@ -304,10 +597,10 @@ export default function Header({
             onClick={onOpenCheckStatus}
             type="button"
             className="p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
-            title="Search visitor status"
+            title={t('check_status', 'Check Status')}
           >
             <Search className="w-3.5 h-3.5 text-slate-400" />
-            <span className="hidden sm:inline">Status</span>
+            <span className="hidden sm:inline">{t('check_status', 'Status')}</span>
           </button>
 
           {/* Check Out Button */}
@@ -315,10 +608,10 @@ export default function Header({
             onClick={onOpenCheckOut}
             type="button"
             className="p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1.5"
-            title="Check out visitor"
+            title={t('checkout_btn', 'Check Out')}
           >
             <DoorClosed className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-            <span className="hidden sm:inline">Exit</span>
+            <span className="hidden sm:inline">{t('checkout_btn', 'Exit')}</span>
           </button>
 
           {/* Add Vendor (Desktop only) */}
@@ -328,7 +621,7 @@ export default function Header({
             className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-2xs transition-all cursor-pointer"
           >
             <Briefcase className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-            <span>+ Vendor</span>
+            <span>+ {t('vendors', 'Vendor')}</span>
           </button>
 
           {/* Add Visitor (Primary Action) */}
@@ -338,13 +631,15 @@ export default function Header({
             className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shadow-blue-500/20 transition-all cursor-pointer"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">+ Visitor</span>
-            <span className="inline sm:hidden">+ Add</span>
+            <span className="hidden sm:inline">{t('add_visitor_btn', '+ Visitor')}</span>
+            <span className="inline sm:hidden">+</span>
           </button>
         </div>
       ) : (
         /* ================= OPERATOR HEADER CONTROLS (Point 2) ================= */
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {renderNotificationBell()}
+
           {/* Visible Language Switch Button (Urdu / English) */}
           <button
             onClick={toggleLanguage}
@@ -423,7 +718,7 @@ export default function Header({
                   <div className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between rounded-xl bg-slate-50/60 dark:bg-slate-800/40">
                     <span className="text-[11px] text-slate-400">{t('active_gate', 'Gate')}</span>
                     <span className="font-bold text-slate-900 dark:text-white truncate max-w-[120px]">
-                      {currentGate?.name || 'All'}
+                      {currentGate?.name || t('no_gate_assigned', 'No Gate Assigned')}
                     </span>
                   </div>
 
@@ -448,7 +743,16 @@ export default function Header({
           <button
             onClick={() => onOpenCheckIn && onOpenCheckIn('VISITOR')}
             type="button"
-            className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs shadow-blue-500/20 transition-all cursor-pointer"
+            disabled={!currentGate && gates.length === 0}
+            title={
+              !currentGate && gates.length === 0
+                ? t(
+                    'no_gate_assigned_desc',
+                    'No gate is assigned to your Operator account. Please contact an Administrator to assign a gate.'
+                  )
+                : undefined
+            }
+            className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-xs shadow-blue-500/20 transition-all cursor-pointer"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>{t('add_visitor_btn', '+ Add Visitor')}</span>

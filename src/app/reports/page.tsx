@@ -242,7 +242,7 @@ export default function ReportsPage() {
         <div className="printable-area space-y-6">
           {/* Print Only Header */}
           <div className="hidden print:block border-b-2 border-slate-900 pb-3 mb-4">
-            <h1 className="text-2xl font-black uppercase">Gate Keeper - Security Audit Report</h1>
+            <h1 className="text-2xl font-black uppercase">GateShield • Security Audit Report</h1>
             <p className="text-xs text-slate-600">
               Generated: {new Date().toLocaleString()} • Filtered Records: {reportData?.summary?.total || 0}
             </p>

@@ -78,6 +78,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setCurrentGate = (gate: Gate | null) => {
+    if (user?.role === 'OPERATOR') {
+      const assignedGates = Array.isArray(user.gates) ? user.gates : [];
+      if (!gate) {
+        if (assignedGates.length > 0) {
+          setCurrentGateState(assignedGates[0]);
+          localStorage.setItem('gk_current_gate', JSON.stringify(assignedGates[0]));
+        } else {
+          setCurrentGateState(null);
+          localStorage.removeItem('gk_current_gate');
+        }
+        return;
+      }
+      const allowedGate = assignedGates.find((g) => g.id === gate.id);
+      if (!allowedGate) {
+        return;
+      }
+      setCurrentGateState(allowedGate);
+      localStorage.setItem('gk_current_gate', JSON.stringify(allowedGate));
+      return;
+    }
+
     setCurrentGateState(gate);
     if (gate) {
       localStorage.setItem('gk_current_gate', JSON.stringify(gate));
@@ -88,31 +109,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/me', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         if (data.authenticated && data.user) {
           setUser(data.user);
+          const userGates: Gate[] = Array.isArray(data.user.gates) ? data.user.gates : [];
 
-          // Restore or select gate
-          const savedGate = localStorage.getItem('gk_current_gate');
-          if (savedGate) {
-            try {
-              setCurrentGateState(JSON.parse(savedGate));
-            } catch {
-              // ignore
+          if (data.user.role === 'OPERATOR') {
+            if (userGates.length === 0) {
+              setCurrentGateState(null);
+              localStorage.removeItem('gk_current_gate');
+            } else {
+              let matchedSavedGate: Gate | undefined;
+              const savedGate = localStorage.getItem('gk_current_gate');
+              if (savedGate) {
+                try {
+                  const parsed = JSON.parse(savedGate) as Gate | null;
+                  if (parsed?.id) {
+                    matchedSavedGate = userGates.find((g) => g.id === parsed.id);
+                  }
+                } catch {
+                  // ignore invalid saved gate
+                }
+              }
+              const gateToSelect = matchedSavedGate || userGates[0];
+              setCurrentGateState(gateToSelect);
+              localStorage.setItem('gk_current_gate', JSON.stringify(gateToSelect));
             }
-          } else if (data.user.gates && data.user.gates.length > 0) {
-            setCurrentGate(data.user.gates[0]);
+          } else {
+            // ADMIN: restore saved gate if valid, or select first gate
+            const savedGate = localStorage.getItem('gk_current_gate');
+            if (savedGate) {
+              try {
+                const parsed = JSON.parse(savedGate) as Gate | null;
+                const matched = parsed?.id
+                  ? userGates.find((g) => g.id === parsed.id) || parsed
+                  : null;
+                setCurrentGateState(matched);
+              } catch {
+                if (userGates.length > 0) {
+                  setCurrentGateState(userGates[0]);
+                  localStorage.setItem('gk_current_gate', JSON.stringify(userGates[0]));
+                }
+              }
+            } else if (userGates.length > 0) {
+              setCurrentGateState(userGates[0]);
+              localStorage.setItem('gk_current_gate', JSON.stringify(userGates[0]));
+            }
           }
         } else {
           setUser(null);
+          setCurrentGateState(null);
         }
       } else {
         setUser(null);
+        setCurrentGateState(null);
       }
     } catch {
       setUser(null);
+      setCurrentGateState(null);
     } finally {
       setLoading(false);
     }
@@ -126,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       setUser(null);
+      setCurrentGateState(null);
       localStorage.removeItem('gk_current_gate');
       router.push('/login');
     } catch (e) {

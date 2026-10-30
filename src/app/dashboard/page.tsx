@@ -22,6 +22,8 @@ import {
   Truck,
   Sparkles,
   X,
+  Package,
+  Crown,
 } from 'lucide-react';
 import {
   IconRegisterVisitor,
@@ -34,8 +36,11 @@ import CheckInModal from '@/components/modals/CheckInModal';
 import CheckOutModal from '@/components/modals/CheckOutModal';
 import CheckStatusModal from '@/components/modals/CheckStatusModal';
 import VisitorBadgeModal from '@/components/modals/VisitorBadgeModal';
+import RegistrationSuccessModal from '@/components/modals/RegistrationSuccessModal';
 import CategoryRecordsModal, { CategoryModalConfig } from '@/components/modals/CategoryRecordsModal';
 import UpcomingGuestsModal from '@/components/modals/UpcomingGuestsModal';
+import ParcelManagementView from '@/components/parcels/ParcelManagementView';
+import VipGuestManagementView from '@/components/vip/VipGuestManagementView';
 import GatekeeperLoader from '@/components/ui/GatekeeperLoader';
 import { playSelectSound } from '@/utils/interactionSound';
 import type { GuestInvitationRecord } from '@/app/api/employee/invitations/route';
@@ -56,7 +61,12 @@ export default function DashboardPage() {
     const updateTime = () => {
       const now = new Date();
       setCurrentTime(
-        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        now.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true,
+        })
       );
       setCurrentDate(
         now.toLocaleDateString(language === 'ur' ? 'ur-PK' : 'en-US', {
@@ -80,6 +90,11 @@ export default function DashboardPage() {
   const [isCheckStatusOpen, setIsCheckStatusOpen] = useState(false);
   const [selectedPersonForDetails, setSelectedPersonForDetails] = useState<any>(null);
   const [selectedVisitBadge, setSelectedVisitBadge] = useState<any>(null);
+  const [badgeAutoPrint, setBadgeAutoPrint] = useState(false);
+  const [specialGuestSuccessVisit, setSpecialGuestSuccessVisit] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
 
   // Shared Upcoming Guests state (visible to all Gate Operators & Admins regardless of gate)
   const [isUpcomingGuestsOpen, setIsUpcomingGuestsOpen] = useState(false);
@@ -89,6 +104,13 @@ export default function DashboardPage() {
   const knownInvitationIdsRef = useRef<Set<string>>(new Set());
   const initialInvitationsLoadedRef = useRef(false);
   const upcomingReqInFlightRef = useRef(false);
+
+  // Parcel Tracker & VIP Guest Modal states & live counts
+  const [isParcelTrackerOpen, setIsParcelTrackerOpen] = useState(false);
+  const [expectedParcelCount, setExpectedParcelCount] = useState(0);
+  const [receivedParcelCount, setReceivedParcelCount] = useState(0);
+  const [isVipGuestsOpen, setIsVipGuestsOpen] = useState(false);
+  const [upcomingVipCount, setUpcomingVipCount] = useState(0);
 
   // Operator-only Category Records Modal state
   const [categoryModalConfig, setCategoryModalConfig] = useState<CategoryModalConfig | null>(null);
@@ -108,7 +130,11 @@ export default function DashboardPage() {
     if (upcomingReqInFlightRef.current) return;
     upcomingReqInFlightRef.current = true;
     try {
-      const res = await fetch('/api/invitations/upcoming', { cache: 'no-store' });
+      const [res, prcRes, vipRes] = await Promise.all([
+        fetch('/api/invitations/upcoming', { cache: 'no-store' }),
+        fetch('/api/parcels', { cache: 'no-store' }),
+        fetch('/api/vip-guests', { cache: 'no-store' }),
+      ]);
       if (res.ok) {
         const data = await res.json();
         const incoming: GuestInvitationRecord[] = Array.isArray(data.invitations)
@@ -128,6 +154,15 @@ export default function DashboardPage() {
         setUpcomingPendingCount(
           typeof data.pendingCount === 'number' ? data.pendingCount : incoming.length
         );
+      }
+      if (prcRes.ok) {
+        const prcData = await prcRes.json();
+        setExpectedParcelCount(prcData?.counts?.expectedCount ?? 0);
+        setReceivedParcelCount(prcData?.counts?.receivedCount ?? 0);
+      }
+      if (vipRes.ok) {
+        const vipData = await vipRes.json();
+        setUpcomingVipCount(vipData?.counts?.upcomingCount ?? 0);
       }
     } catch {
       // Ignore transient network errors
@@ -186,15 +221,18 @@ export default function DashboardPage() {
         <div className="space-y-6">
           {/* Welcome & Quick Action Banner */}
           <div className="rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 p-6 sm:p-8 text-white shadow-xl shadow-blue-500/10 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5 sm:gap-6">
-            <div className="space-y-1">
+            <div className={`space-y-1 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
               <span className="text-xs font-bold uppercase tracking-wider text-blue-200 bg-white/10 px-2.5 py-0.5 rounded-full inline-block mb-1">
-                Active Gate: {currentGate?.name || 'All Gates'}
+                {t('active_gate', 'Active Gate')}: {currentGate?.name || t('all_gates', 'All Gates')}
               </span>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                Gate Control Dashboard
+                {t('gate_control_dashboard', 'Gate Control Dashboard')}
               </h1>
               <p className="text-xs sm:text-sm text-blue-100 max-w-xl">
-                Live visitor tracking, instant CNIC &amp; Driving License OCR check-in, and security access logs.
+                {t(
+                  'gate_control_subtitle',
+                  'Live visitor tracking, instant CNIC & Driving License OCR check-in, and security access logs.'
+                )}
               </p>
             </div>
 
@@ -207,7 +245,7 @@ export default function DashboardPage() {
                   className="w-full sm:w-auto sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-sm text-xs font-bold transition-all border border-white/20 cursor-pointer min-h-[42px] whitespace-nowrap"
                 >
                   <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
-                  <span>Upcoming Guests</span>
+                  <span>{t('guest_option_title', 'Upcoming Guests')}</span>
                   {upcomingPendingCount > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950">
                       {upcomingPendingCount}
@@ -221,7 +259,7 @@ export default function DashboardPage() {
                   className="w-full sm:w-auto sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-sm text-xs font-bold transition-all border border-white/20 cursor-pointer min-h-[42px] whitespace-nowrap"
                 >
                   <Search className="w-4 h-4 shrink-0" />
-                  <span>Check Status</span>
+                  <span>{t('check_status', 'Check Status')}</span>
                 </button>
 
                 <button
@@ -233,7 +271,7 @@ export default function DashboardPage() {
                   className="w-full sm:w-auto sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-md transition-all cursor-pointer min-h-[42px] whitespace-nowrap"
                 >
                   <DoorClosed className="w-4 h-4 shrink-0" />
-                  <span>Check Out</span>
+                  <span>{t('checkout_btn', 'Check Out')}</span>
                 </button>
               </div>
 
@@ -244,7 +282,7 @@ export default function DashboardPage() {
                 className="hidden sm:flex sm:flex-initial items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold shadow-md transition-all cursor-pointer min-h-[42px] whitespace-nowrap"
               >
                 <Briefcase className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>+ Vendor</span>
+                <span>+ {t('vendors', 'Vendor')}</span>
               </button>
 
               {/* Mobile Row 2: Add Visitor (100% full width on mobile) | Tablet/Desktop: inline flex button */}
@@ -254,7 +292,7 @@ export default function DashboardPage() {
                 className="w-full sm:w-auto sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-extrabold shadow-md transition-all cursor-pointer min-h-[42px] whitespace-nowrap"
               >
                 <UserPlus className="w-4 h-4 shrink-0" />
-                <span>+ Add Visitor</span>
+                <span>{t('add_visitor_btn', '+ Add Visitor')}</span>
               </button>
             </div>
           </div>
@@ -265,7 +303,7 @@ export default function DashboardPage() {
             <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Total Visitors Today
+                  {t('total_visitors_today', 'Total Visitors Today')}
                 </span>
                 <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
                   <Users className="w-4 h-4" />
@@ -276,7 +314,7 @@ export default function DashboardPage() {
                   {stats?.totalToday || 0}
                 </span>
                 <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center">
-                  <TrendingUp className="w-3 h-3 mr-0.5" /> Live
+                  <TrendingUp className="w-3 h-3 mr-0.5" /> {t('live_indicator', 'Live')}
                 </span>
               </div>
             </div>
@@ -292,7 +330,7 @@ export default function DashboardPage() {
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                  Currently Inside
+                  {t('currently_inside', 'Currently Inside')}
                 </span>
                 <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
                   <DoorOpen className="w-4 h-4" />
@@ -304,7 +342,7 @@ export default function DashboardPage() {
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Active on site
+                  {t('active_on_site', 'Active on site')}
                 </span>
               </div>
             </div>
@@ -313,7 +351,7 @@ export default function DashboardPage() {
             <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Total Check-Outs
+                  {t('total_checkouts', 'Total Check-Outs')}
                 </span>
                 <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                   <DoorClosed className="w-4 h-4" />
@@ -324,7 +362,7 @@ export default function DashboardPage() {
                   {stats?.totalCheckOutsToday || 0}
                 </span>
                 <span className="text-[11px] font-semibold text-slate-400">
-                  Exited premises
+                  {t('exited_premises', 'Exited premises')}
                 </span>
               </div>
             </div>
@@ -333,7 +371,7 @@ export default function DashboardPage() {
             <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  Overstay Alerts (&gt;8h)
+                  {t('overstay_alerts', 'Overstay Alerts (>8h)')}
                 </span>
                 <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">
                   <AlertTriangle className="w-4 h-4" />
@@ -344,7 +382,7 @@ export default function DashboardPage() {
                   {stats?.overstayCount || 0}
                 </span>
                 <span className="text-[11px] font-semibold text-slate-400">
-                  Flagged badges
+                  {t('flagged_badges', 'Flagged badges')}
                 </span>
               </div>
             </div>
@@ -354,7 +392,9 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shadow-2xs">
               <div>
-                <span className="text-[11px] font-medium text-slate-400 block">Vendors</span>
+                <span className="text-[11px] font-medium text-slate-400 block">
+                  {t('vendors', 'Vendors')}
+                </span>
                 <span className="text-lg font-bold text-slate-800 dark:text-slate-200">
                   {stats?.vendorsToday || 0}
                 </span>
@@ -364,7 +404,9 @@ export default function DashboardPage() {
 
             <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shadow-2xs">
               <div>
-                <span className="text-[11px] font-medium text-slate-400 block">Interviews</span>
+                <span className="text-[11px] font-medium text-slate-400 block">
+                  {t('interviews', 'Interviews')}
+                </span>
                 <span className="text-lg font-bold text-slate-800 dark:text-slate-200">
                   {stats?.interviewsToday || 0}
                 </span>
@@ -374,7 +416,9 @@ export default function DashboardPage() {
 
             <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shadow-2xs">
               <div>
-                <span className="text-[11px] font-medium text-slate-400 block">Special Guests</span>
+                <span className="text-[11px] font-medium text-slate-400 block">
+                  {t('special_guests', 'Special Guests')}
+                </span>
                 <span className="text-lg font-bold text-slate-800 dark:text-slate-200">
                   {stats?.specialGuestsToday || 0}
                 </span>
@@ -384,7 +428,9 @@ export default function DashboardPage() {
 
             <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between shadow-2xs">
               <div>
-                <span className="text-[11px] font-medium text-slate-400 block">Deliveries</span>
+                <span className="text-[11px] font-medium text-slate-400 block">
+                  {t('deliveries', 'Deliveries')}
+                </span>
                 <span className="text-lg font-bold text-slate-800 dark:text-slate-200">
                   {stats?.deliveriesToday || 0}
                 </span>
@@ -404,10 +450,12 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                   <h2 className="font-bold text-sm text-slate-900 dark:text-white">
-                    Currently Inside Facility ({stats?.activeVisitors?.length || 0})
+                    {t('currently_inside_facility', 'Currently Inside Facility')} ({stats?.activeVisitors?.length || 0})
                   </h2>
                 </div>
-                <span className="text-xs text-slate-400">Real-time occupancy</span>
+                <span className="text-xs text-slate-400">
+                  {t('real_time_occupancy', 'Real-time occupancy')}
+                </span>
               </div>
 
               <div className="overflow-x-auto">
@@ -415,12 +463,12 @@ export default function DashboardPage() {
                   <table className="w-full text-left text-xs min-w-[700px]">
                     <thead className="bg-slate-50 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200 dark:border-slate-800">
                       <tr>
-                        <th className="px-5 py-3">Visitor</th>
-                        <th className="px-4 py-3">Category</th>
-                        <th className="px-4 py-3">Host &amp; Dept</th>
-                        <th className="px-4 py-3">Card / Badge</th>
-                        <th className="px-4 py-3">Entry Time</th>
-                        <th className="px-4 py-3 text-right">Action</th>
+                        <th className="px-5 py-3">{t('visitor', 'Visitor')}</th>
+                        <th className="px-4 py-3">{t('category', 'Category')}</th>
+                        <th className="px-4 py-3">{t('host_and_dept', 'Host & Dept')}</th>
+                        <th className="px-4 py-3">{t('card_badge', 'Card / Badge')}</th>
+                        <th className="px-4 py-3">{t('entry_time', 'Entry Time')}</th>
+                        <th className="px-4 py-3 text-right">{t('actions', 'Action')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -486,7 +534,7 @@ export default function DashboardPage() {
                                 className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors cursor-pointer"
                                 title="Print / View Visitor Badge"
                               >
-                                View Pass
+                                {t('view_pass', 'View Pass')}
                               </button>
                               <button
                                 type="button"
@@ -496,7 +544,7 @@ export default function DashboardPage() {
                                 }}
                                 className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
                               >
-                                Check Out
+                                {t('checkout_btn', 'Check Out')}
                               </button>
                             </div>
                           </td>
@@ -506,7 +554,7 @@ export default function DashboardPage() {
                   </table>
                 ) : (
                   <div className="p-12 text-center text-slate-400 text-xs">
-                    No visitors currently inside the facility.
+                    {t('no_visitors_inside', 'No visitors currently inside the facility.')}
                   </div>
                 )}
               </div>
@@ -516,7 +564,7 @@ export default function DashboardPage() {
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-4">
               <div className="border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between">
                 <h2 className="font-bold text-sm text-slate-900 dark:text-white">
-                  Recent Activity
+                  {t('recent_activity', 'Recent Activity')}
                 </h2>
                 <Clock className="w-4 h-4 text-slate-400" />
               </div>
@@ -539,16 +587,21 @@ export default function DashboardPage() {
                               : 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
                           }`}
                         >
-                          {v.status === 'CHECKED_IN' ? 'CHECK-IN' : 'CHECK-OUT'}
+                          {v.status === 'CHECKED_IN'
+                            ? t('check_in_badge', 'CHECK-IN')
+                            : t('check_out_badge', 'CHECK-OUT')}
                         </span>
                       </div>
 
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Visiting {v.hostName} ({v.department}) • Gate: {v.entryGate?.name || 'Main Gate'}
+                        {t('visiting_host', 'Visiting')} {v.hostName} ({v.department}) •{' '}
+                        {t('gate_label', 'Gate')}: {v.entryGate?.name || 'Main Gate'}
                       </p>
 
                       <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
-                        <span>Card: {v.visitorCardNo || 'N/A'}</span>
+                        <span>
+                          {t('card_label', 'Card')}: {v.visitorCardNo || 'N/A'}
+                        </span>
                         <span>
                           {new Date(v.checkInTime).toLocaleTimeString([], {
                             hour: '2-digit',
@@ -560,7 +613,7 @@ export default function DashboardPage() {
                   ))
                 ) : (
                   <div className="p-8 text-center text-slate-400 text-xs">
-                    No activity recorded today yet.
+                    {t('no_activity_today', 'No activity recorded today yet.')}
                   </div>
                 )}
               </div>
@@ -582,10 +635,10 @@ export default function DashboardPage() {
                 </div>
                 <div className={language === 'ur' ? 'text-right' : 'text-left'}>
                   <p className="text-xs font-extrabold uppercase tracking-wider text-blue-100">
-                    {t('new_guest_invitation_alert', 'New Upcoming Guest Invitation Received!')}
+                    {t('new_guest_invitation_alert', 'New Special Guest Invitation Received!')}
                   </p>
                   <p className="text-sm font-bold mt-0.5">
-                    {newInvitationToast.guestName} &bull; Card #{newInvitationToast.visitorCardNo} &bull; Host: {newInvitationToast.employeeName} ({newInvitationToast.departmentName})
+                    {newInvitationToast.guestName} &bull; {newInvitationToast.expectedArrivalTime} &bull; Host: {newInvitationToast.employeeName} ({newInvitationToast.departmentName})
                   </p>
                 </div>
               </div>
@@ -597,9 +650,14 @@ export default function DashboardPage() {
                     setNewInvitationToast(null);
                     setIsUpcomingGuestsOpen(true);
                   }}
-                  className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold cursor-pointer shadow-xs"
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold cursor-pointer shadow-xs inline-flex items-center gap-1.5"
                 >
-                  {t('upcoming_guests_btn', 'Upcoming Guests')} ({upcomingPendingCount})
+                  <span>{t('guest_option_title', 'Guest')}</span>
+                  {upcomingPendingCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-slate-950/15 text-slate-950 text-[11px] font-black">
+                      {upcomingPendingCount}
+                    </span>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -612,17 +670,44 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* Unassigned Gate Warning Banner for Operators with no assigned gate */}
+          {!currentGate && (!user?.gates || user.gates.length === 0) && (
+            <div className="p-4 rounded-2xl border-2 border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 flex items-start gap-3 shadow-xs">
+              <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className={language === 'ur' ? 'text-right flex-1' : 'text-left flex-1'}>
+                <p className="text-xs sm:text-sm font-extrabold">
+                  {t('no_gate_assigned', 'No Gate Assigned')}
+                </p>
+                <p className="text-xs font-medium mt-0.5 text-amber-800 dark:text-amber-300">
+                  {t(
+                    'no_gate_assigned_desc',
+                    'No gate is assigned to your Operator account. Please contact an Administrator to assign a gate before checking in visitors.'
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Gate Control Hero Section */}
-          <div className="rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 p-5 sm:p-7 text-white shadow-xl shadow-blue-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
-            <div className={`space-y-1.5 w-full md:flex-1 ${language === 'ur' ? 'text-right' : 'text-left'}`}>
+          <div className="rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 p-5 sm:p-7 text-white shadow-xl shadow-blue-500/10 flex flex-col gap-4">
+            <div className={`space-y-1.5 w-full ${language === 'ur' ? 'text-right' : 'text-left'}`}>
               <div className={`flex flex-wrap items-center gap-2 ${language === 'ur' ? 'justify-end' : 'justify-start'}`}>
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-200 bg-white/10 px-2.5 py-1 rounded-full inline-flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  {t('active_gate')}: {currentGate?.name || t('all_gates')}
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      currentGate || (user?.gates && user.gates.length > 0)
+                        ? 'bg-emerald-400 animate-pulse'
+                        : 'bg-amber-400'
+                    }`}
+                  />
+                  {t('active_gate')}:{' '}
+                  {currentGate?.name ||
+                    user?.gates?.[0]?.name ||
+                    t('no_gate_assigned', 'No Gate Assigned')}
                 </span>
-                {currentGate?.type && (
+                {(currentGate?.type || user?.gates?.[0]?.type) && (
                   <span className="text-[11px] font-mono font-bold text-blue-200 bg-white/10 px-2 py-0.5 rounded-md">
-                    {currentGate.type}
+                    {currentGate?.type || user?.gates?.[0]?.type}
                   </span>
                 )}
               </div>
@@ -634,33 +719,25 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            {/* Shared Upcoming Guests Button + Live Clock & Date Badge */}
-            <div className="w-full md:w-auto shrink-0 flex flex-wrap items-center justify-between md:justify-end gap-2.5 sm:gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  playSelectSound();
-                  setIsUpcomingGuestsOpen(true);
-                }}
-                className="relative flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs sm:text-sm font-extrabold shadow-lg shadow-amber-500/20 transition-all cursor-pointer active:scale-95"
+            {/* Live Clock & Date Badge — Left-aligned in English, Right-aligned in Urdu */}
+            <div
+              className={`w-full flex flex-wrap items-center gap-2.5 sm:gap-3 ${
+                language === 'ur' ? 'justify-end' : 'justify-start'
+              }`}
+            >
+              <div
+                dir="ltr"
+                className="inline-flex items-center gap-2.5 bg-white/10 backdrop-blur-md px-3.5 sm:px-4 py-2 rounded-xl border border-white/15 shadow-xs"
               >
-                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-slate-950 shrink-0" />
-                <span>{t('upcoming_guests_btn', 'Upcoming Guests')}</span>
-                <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-slate-950 text-amber-300 text-xs font-extrabold flex items-center justify-center">
-                  {upcomingPendingCount}
-                </span>
-              </button>
-
-              <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/15">
-                <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
-                  <Clock className="w-5 h-5 text-amber-300" />
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300" />
                 </div>
                 <div className="text-left">
-                  <p className="font-mono text-sm sm:text-base font-extrabold tracking-wider text-white">
+                  <p className="font-mono text-sm sm:text-base font-extrabold tracking-wider text-white leading-tight">
                     {currentTime || '--:--:--'}
                   </p>
-                  <p className="text-[11px] font-medium text-blue-200 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
+                  <p className="text-[11px] font-medium text-blue-200 flex items-center gap-1 mt-0.5">
+                    <Calendar className="w-3 h-3 shrink-0" />
                     <span>{currentDate || '...'}</span>
                   </p>
                 </div>
@@ -668,16 +745,17 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Main Dashboard Action Area - Visual Task Tiles */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {/* 1. Register Visitor */}
+          {/* Main Dashboard Action Area - 6 Visual Task Tiles */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            {/* 1. Register Visitor (includes Parcel option for Unexpected Parcels) */}
             <button
               type="button"
+              disabled={!currentGate && (!user?.gates || user.gates.length === 0)}
               onClick={() => openCheckIn('VISITOR')}
-              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-white to-emerald-500/5 dark:from-emerald-950/40 dark:via-slate-900 dark:to-emerald-950/20 border-2 border-emerald-500/30 hover:border-emerald-500 dark:border-emerald-800 dark:hover:border-emerald-500 shadow-sm hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
+              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-white to-emerald-500/5 dark:from-emerald-950/40 dark:via-slate-900 dark:to-emerald-950/20 border-2 border-emerald-500/30 hover:border-emerald-500 dark:border-emerald-800 dark:hover:border-emerald-500 shadow-sm hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-200 text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
             >
-              <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30 shrink-0">
-                <IconRegisterVisitor className="w-11 h-11 sm:w-12 sm:h-12 text-white" />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/30 shrink-0">
+                <IconRegisterVisitor className="w-10 h-10 sm:w-11 sm:h-11 text-white" />
               </div>
               <div className="space-y-1 text-center">
                 <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
@@ -698,8 +776,8 @@ export default function DashboardPage() {
               }}
               className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-white to-amber-500/5 dark:from-amber-950/40 dark:via-slate-900 dark:to-amber-950/20 border-2 border-amber-500/30 hover:border-amber-500 dark:border-amber-800 dark:hover:border-amber-500 shadow-sm hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
             >
-              <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
-                <IconCheckoutVisitor className="w-11 h-11 sm:w-12 sm:h-12 text-white" />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
+                <IconCheckoutVisitor className="w-10 h-10 sm:w-11 sm:h-11 text-white" />
               </div>
               <div className="space-y-1 text-center">
                 <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
@@ -717,8 +795,8 @@ export default function DashboardPage() {
               onClick={() => setIsCheckStatusOpen(true)}
               className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-500/10 via-white to-blue-500/5 dark:from-blue-950/40 dark:via-slate-900 dark:to-blue-950/20 border-2 border-blue-500/30 hover:border-blue-500 dark:border-blue-800 dark:hover:border-blue-500 shadow-sm hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
             >
-              <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30 shrink-0">
-                <IconCheckStatus className="w-11 h-11 sm:w-12 sm:h-12 text-white" />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/30 shrink-0">
+                <IconCheckStatus className="w-10 h-10 sm:w-11 sm:h-11 text-white" />
               </div>
               <div className="space-y-1 text-center">
                 <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
@@ -730,21 +808,93 @@ export default function DashboardPage() {
               </div>
             </button>
 
-            {/* 4. Special Guest */}
+            {/* 4. Guest (Renamed from Special Guest — Invited Guests Check-In Workflow) */}
             <button
               type="button"
-              onClick={() => openCheckIn('SPECIAL_GUEST')}
-              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 via-white to-purple-500/5 dark:from-purple-950/40 dark:via-slate-900 dark:to-purple-950/20 border-2 border-purple-500/30 hover:border-purple-500 dark:border-purple-800 dark:hover:border-purple-500 shadow-sm hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
+              onClick={() => {
+                playSelectSound();
+                setIsUpcomingGuestsOpen(true);
+              }}
+              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-white to-indigo-500/5 dark:from-indigo-950/40 dark:via-slate-900 dark:to-indigo-950/20 border-2 border-indigo-500/30 hover:border-indigo-500 dark:border-indigo-800 dark:hover:border-indigo-500 shadow-sm hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
             >
-              <div className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-500/30 shrink-0">
-                <IconAddVendor className="w-11 h-11 sm:w-12 sm:h-12 text-white" />
+              {upcomingPendingCount > 0 && (
+                <span
+                  aria-label={`${upcomingPendingCount} pending guests`}
+                  className="gs-special-guest-badge absolute top-2.5 right-2.5 sm:top-3 sm:right-3 min-w-[28px] h-7 px-2 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 text-xs font-black tracking-tight flex items-center justify-center gap-1 shadow-md shadow-amber-500/25 ring-2 ring-white dark:ring-slate-900 z-10"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-950/80 shrink-0" />
+                  <span>{upcomingPendingCount}</span>
+                </span>
+              )}
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/30 shrink-0">
+                <IconAddVendor className="w-10 h-10 sm:w-11 sm:h-11 text-white" />
               </div>
               <div className="space-y-1 text-center">
                 <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
-                  {t('add_vendor')}
+                  {t('guest_option_title', 'Guest')}
                 </p>
                 <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 leading-snug">
-                  {t('add_vendor_desc')}
+                  {t('guest_option_desc', 'Invited Guests Check-In')}
+                </p>
+              </div>
+            </button>
+
+            {/* 5. Parcel Tracker (Expected & Received Parcels Workflow) */}
+            <button
+              type="button"
+              onClick={() => {
+                playSelectSound();
+                setIsParcelTrackerOpen(true);
+              }}
+              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-orange-500/10 via-white to-orange-500/5 dark:from-orange-950/40 dark:via-slate-900 dark:to-orange-950/20 border-2 border-orange-500/30 hover:border-orange-500 dark:border-orange-800 dark:hover:border-orange-500 shadow-sm hover:shadow-lg hover:shadow-orange-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
+            >
+              {(expectedParcelCount > 0 || receivedParcelCount > 0) && (
+                <span
+                  aria-label={`${expectedParcelCount} expected parcels`}
+                  className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 min-w-[28px] h-7 px-2 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-white text-xs font-black tracking-tight flex items-center justify-center gap-1 shadow-md shadow-orange-500/25 ring-2 ring-white dark:ring-slate-900 z-10"
+                >
+                  <span>{expectedParcelCount || receivedParcelCount}</span>
+                </span>
+              )}
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-md shadow-orange-500/30 shrink-0">
+                <Package className="w-8 h-8 sm:w-9 sm:h-9 text-white" />
+              </div>
+              <div className="space-y-1 text-center">
+                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
+                  {t('parcel_tracker_title', 'Parcel Tracker')}
+                </p>
+                <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 leading-snug">
+                  {t('parcel_tracker_desc', 'Expected, Received & Delivered Parcels')}
+                </p>
+              </div>
+            </button>
+
+            {/* 6. VIP Guest (Admin-Created VIP Fast Gate Check-In/Out) */}
+            <button
+              type="button"
+              onClick={() => {
+                playSelectSound();
+                setIsVipGuestsOpen(true);
+              }}
+              className="group relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-purple-500/10 via-white to-purple-500/5 dark:from-purple-950/40 dark:via-slate-900 dark:to-purple-950/20 border-2 border-purple-500/30 hover:border-purple-500 dark:border-purple-800 dark:hover:border-purple-500 shadow-sm hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-200 text-center cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[150px] sm:min-h-[170px]"
+            >
+              {upcomingVipCount > 0 && (
+                <span
+                  aria-label={`${upcomingVipCount} upcoming VIP guests`}
+                  className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 min-w-[28px] h-7 px-2 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-xs font-black tracking-tight flex items-center justify-center gap-1 shadow-md shadow-purple-500/25 ring-2 ring-white dark:ring-slate-900 z-10"
+                >
+                  <span>{upcomingVipCount}</span>
+                </span>
+              )}
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-500/30 shrink-0">
+                <Crown className="w-8 h-8 sm:w-9 sm:h-9 text-white" />
+              </div>
+              <div className="space-y-1 text-center">
+                <p className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white leading-snug">
+                  {t('vip_guest_title', 'VIP Guest')}
+                </p>
+                <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 leading-snug">
+                  {t('vip_guest_desc', 'VIP Name & Vehicle Fast Check-In')}
                 </p>
               </div>
             </button>
@@ -1267,10 +1417,33 @@ export default function DashboardPage() {
       {selectedVisitBadge && (
         <VisitorBadgeModal
           isOpen={Boolean(selectedVisitBadge)}
-          onClose={() => setSelectedVisitBadge(null)}
+          onClose={() => {
+            setSelectedVisitBadge(null);
+            setBadgeAutoPrint(false);
+          }}
           visit={selectedVisitBadge}
+          autoPrint={badgeAutoPrint}
         />
       )}
+
+      {/* Step 5: Special Guest Check-In Success / Result Screen (View Card & Print Badge) */}
+      <RegistrationSuccessModal
+        isOpen={Boolean(specialGuestSuccessVisit)}
+        onClose={() => setSpecialGuestSuccessVisit(null)}
+        visit={specialGuestSuccessVisit}
+        onViewCard={() => {
+          setBadgeAutoPrint(false);
+          setSelectedVisitBadge(specialGuestSuccessVisit);
+        }}
+        onPrintBadge={() => {
+          setBadgeAutoPrint(true);
+          setSelectedVisitBadge(specialGuestSuccessVisit);
+        }}
+        onRegisterNext={() => {
+          setSpecialGuestSuccessVisit(null);
+          setIsUpcomingGuestsOpen(true);
+        }}
+      />
 
       {/* Shared Upcoming Guests Modal (All Operators & Admins) */}
       <UpcomingGuestsModal
@@ -1287,7 +1460,7 @@ export default function DashboardPage() {
           fetchUpcomingInvitations();
           fetchStats();
           if (createdVisit) {
-            setSelectedVisitBadge(createdVisit);
+            setSpecialGuestSuccessVisit(createdVisit);
           }
         }}
       />
@@ -1297,7 +1470,10 @@ export default function DashboardPage() {
         <CategoryRecordsModal
           config={categoryModalConfig}
           onClose={() => setCategoryModalConfig(null)}
-          onViewPass={(visit) => setSelectedVisitBadge(visit)}
+          onViewPass={(visit) => {
+            setBadgeAutoPrint(false);
+            setSelectedVisitBadge(visit);
+          }}
           onViewPerson={(visit) => openPersonDetails(visit)}
           onCheckOut={(visit) => {
             setSelectedCheckoutVisit(visit);
@@ -1305,6 +1481,36 @@ export default function DashboardPage() {
           }}
           onRefreshStats={fetchStats}
         />
+      )}
+
+      {/* Parcel Tracker Modal (Opened from Operator Dashboard Main Screen) */}
+      {isParcelTrackerOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-6xl max-h-[94vh] overflow-y-auto rounded-3xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-2xl">
+            <ParcelManagementView
+              isModal
+              onCloseModal={() => {
+                setIsParcelTrackerOpen(false);
+                void fetchUpcomingInvitations();
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* VIP Guest Modal (Opened from Operator Dashboard Main Screen) */}
+      {isVipGuestsOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-6xl max-h-[94vh] overflow-y-auto rounded-3xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 sm:p-6 shadow-2xl">
+            <VipGuestManagementView
+              isModal
+              onCloseModal={() => {
+                setIsVipGuestsOpen(false);
+                void fetchUpcomingInvitations();
+              }}
+            />
+          </div>
+        </div>
       )}
     </AppLayout>
   );

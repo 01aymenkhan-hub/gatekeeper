@@ -102,6 +102,41 @@ async def scan_cnic(file: UploadFile = File(...)):
             ocr_runner=run_ocr,
         )
 
+        # 5. Fallback pass on un-sharpened normalized_card if core identity fields are still missing
+        # (Helps when CLAHE/unsharp masking amplifies guilloche or glare on imperfectly lit cards)
+        if not parsed_data.get("cnic") or not parsed_data.get("name"):
+            raw_ocr_result = run_ocr(normalized_card)
+            raw_results = raw_ocr_result.get("results", [])
+            if raw_results:
+                fallback_parsed = parse_cnic_fields(
+                    normalized_card=normalized_card,
+                    pass1_ocr_results=raw_results,
+                    ocr_runner=None,
+                )
+                for k, v in fallback_parsed.items():
+                    if v and not parsed_data.get(k):
+                        parsed_data[k] = v
+                if not ocr_result.get("results"):
+                    ocr_result = raw_ocr_result
+
+        extracted_keys = [
+            k for k in ("name", "fatherName", "cnic", "gender", "dateOfBirth", "dateOfIssue", "dateOfExpiry")
+            if parsed_data.get(k)
+        ]
+        if extracted_keys:
+            logger.info(
+                "CNIC scan completed: boxes=%d, extracted_fields=%s",
+                len(ocr_result.get("results", [])),
+                extracted_keys,
+            )
+        else:
+            logger.warning(
+                "CNIC scan extracted zero fields: image_shape=%s, boxes=%d, raw_texts=%s",
+                raw_img.shape,
+                len(ocr_result.get("results", [])),
+                ocr_result.get("text", [])[:10],
+            )
+
         return {
             "success": True,
             "parsed": {

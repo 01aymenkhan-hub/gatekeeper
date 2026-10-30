@@ -328,7 +328,7 @@ export default function CheckOutModal({
                     Resolving Visitor Pass...
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Verifying pass security token with gate keeper database
+                    Verifying pass security token with GateShield database
                   </p>
                 </div>
               ) : (

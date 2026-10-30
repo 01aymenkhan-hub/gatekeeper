@@ -52,8 +52,8 @@ function getSmtpConfig() {
   const secure = secureRaw === 'true' || secureRaw === '1' || port === 465;
   const user = (process.env.SMTP_USER || '').trim();
   const pass = process.env.SMTP_PASS || '';
-  const fromEmail = (process.env.SMTP_FROM_EMAIL || user || 'no-reply@gatekeeper.local').trim();
-  const fromName = (process.env.SMTP_FROM_NAME || 'Gatekeeper Security System').trim();
+  const fromEmail = (process.env.SMTP_FROM_EMAIL || user || 'no-reply@gateshield.local').trim();
+  const fromName = (process.env.SMTP_FROM_NAME || 'GateShield Security System').trim();
 
   const isPlaceholderHost = !host || host === 'smtp.example.com';
   const isConfigured = enabled && !isPlaceholderHost && Boolean(fromEmail);
@@ -166,7 +166,7 @@ async function dispatchEmailWithOutbox(params: {
         ? 'EMAIL_ENABLED is not set to true'
         : 'SMTP_HOST / credentials are not configured';
       console.warn(
-        `[Gatekeeper Email Warning] Skipping SMTP dispatch for ${params.eventType} to ${recipientEmail}: ${reason}.`
+        `[GateShield Email Warning] Skipping SMTP dispatch for ${params.eventType} to ${recipientEmail}: ${reason}.`
       );
       await prisma.$executeRaw`
         UPDATE "email_outbox"
@@ -229,7 +229,7 @@ async function dispatchEmailWithOutbox(params: {
   } catch (err: unknown) {
     const safeMsg = err instanceof Error ? err.message.slice(0, 300) : 'SMTP transport error';
     console.error(
-      `[Gatekeeper Email Error] Failed to send ${params.eventType} to ${recipientEmail}:`,
+      `[GateShield Email Error] Failed to send ${params.eventType} to ${recipientEmail}:`,
       safeMsg
     );
     try {
@@ -270,7 +270,7 @@ function buildEmailWrapper(title: string, badgeText: string, badgeColor: string,
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;background-color:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 4px 12px rgba(15,23,42,0.06);">
           <tr>
             <td style="background:linear-gradient(135deg,#1d4ed8,#3730a3);padding:24px 28px;color:#ffffff;">
-              <div style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;opacity:0.85;">Gatekeeper Visitor &amp; Access Control</div>
+              <div style="font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;opacity:0.85;">GateShield Visitor &amp; Access Control</div>
               <div style="font-size:20px;font-weight:800;margin-top:6px;">${escapeHtml(title)}</div>
               <div style="margin-top:10px;">
                 <span style="display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background-color:${badgeColor};color:#ffffff;">
@@ -286,7 +286,7 @@ function buildEmailWrapper(title: string, badgeText: string, badgeColor: string,
           </tr>
           <tr>
             <td style="padding:16px 28px;background-color:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;">
-              Automated notification from Gatekeeper Security System &bull; <a href="${escapeHtml(appUrl)}" style="color:#2563eb;text-decoration:none;">${escapeHtml(appUrl)}</a>
+              Automated notification from GateShield Security System &bull; <a href="${escapeHtml(appUrl)}" style="color:#2563eb;text-decoration:none;">${escapeHtml(appUrl)}</a>
             </td>
           </tr>
         </table>
@@ -310,11 +310,11 @@ export async function sendEmployeeRegistrationConfirmationEmail(employee: {
   createdAt: Date | string;
 }): Promise<EmailDispatchResult> {
   const portalUrl = `${getAppBaseUrl()}/employee`;
-  const subject = 'Gatekeeper Employee Portal — Registration Request Received';
+  const subject = 'GateShield Employee Portal • Registration Request Received';
 
   const bodyHtml = `
     <p style="margin-top:0;">Hello <strong>${escapeHtml(employee.name)}</strong>,</p>
-    <p>Your registration request for the <strong>Gatekeeper Employee Portal</strong> has been received and is currently <strong>PENDING</strong> administrator approval.</p>
+    <p>Your registration request for the <strong>GateShield Employee Portal</strong> has been received and is currently <strong>PENDING</strong> administrator approval.</p>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:18px 0;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;">
       <tr><td style="padding:4px 0;color:#64748b;width:140px;">Full Name:</td><td style="padding:4px 0;font-weight:600;color:#0f172a;">${escapeHtml(employee.name)}</td></tr>
       <tr><td style="padding:4px 0;color:#64748b;">Department:</td><td style="padding:4px 0;font-weight:600;color:#0f172a;">${escapeHtml(employee.departmentName)}</td></tr>
@@ -331,7 +331,7 @@ export async function sendEmployeeRegistrationConfirmationEmail(employee: {
   const text = [
     `Hello ${employee.name},`,
     '',
-    'Your registration request for the Gatekeeper Employee Portal has been received and is currently PENDING administrator approval.',
+    'Your registration request for the GateShield Employee Portal has been received and is currently PENDING administrator approval.',
     '',
     `Full Name: ${employee.name}`,
     `Department: ${employee.departmentName}`,
@@ -384,7 +384,7 @@ export async function sendAdminNewEmployeeRequestEmail(employee: {
   }
 
   if (!adminEmail) {
-    adminEmail = 'admin@gatekeeper.local';
+    adminEmail = 'admin@gateshield.local';
   }
 
   const adminEmployeesUrl = `${getAppBaseUrl()}/employees`;
@@ -392,7 +392,7 @@ export async function sendAdminNewEmployeeRequestEmail(employee: {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-  const subject = `New Employee Registration Request — ${employee.name} (${employee.departmentName})`;
+  const subject = `New Employee Registration Request • ${employee.name} (${employee.departmentName})`;
 
   const bodyHtml = `
     <p style="margin-top:0;">A new employee has submitted a registration request and is awaiting administrator review.</p>
@@ -445,11 +445,11 @@ export async function sendEmployeeApprovedEmail(employee: {
   approvedAt: Date | string;
 }): Promise<EmailDispatchResult> {
   const portalUrl = `${getAppBaseUrl()}/employee`;
-  const subject = 'Gatekeeper Employee Portal — Your Account Has Been Approved';
+  const subject = 'GateShield Employee Portal • Your Account Has Been Approved';
 
   const bodyHtml = `
     <p style="margin-top:0;">Hello <strong>${escapeHtml(employee.name)}</strong>,</p>
-    <p>Great news! Your <strong>Gatekeeper Employee Portal</strong> account has been <strong>APPROVED</strong> by the administrator.</p>
+    <p>Great news! Your <strong>GateShield Employee Portal</strong> account has been <strong>APPROVED</strong> by the administrator.</p>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:18px 0;background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;">
       <tr><td style="padding:4px 0;color:#166534;width:140px;">Account Status:</td><td style="padding:4px 0;font-weight:800;color:#15803d;">APPROVED</td></tr>
       <tr><td style="padding:4px 0;color:#166534;">Department:</td><td style="padding:4px 0;font-weight:600;color:#14532d;">${escapeHtml(employee.departmentName)}</td></tr>
@@ -465,7 +465,7 @@ export async function sendEmployeeApprovedEmail(employee: {
   const text = [
     `Hello ${employee.name},`,
     '',
-    'Your Gatekeeper Employee Portal account has been APPROVED by the administrator.',
+    'Your GateShield Employee Portal account has been APPROVED by the administrator.',
     '',
     'Account Status: APPROVED',
     `Department: ${employee.departmentName}`,
@@ -497,14 +497,14 @@ export async function sendEmployeeRejectedEmail(employee: {
   position: string;
   rejectionReason?: string | null;
 }): Promise<EmailDispatchResult> {
-  const subject = 'Gatekeeper Employee Portal — Registration Request Update';
+  const subject = 'GateShield Employee Portal • Registration Request Update';
   const reasonLine = employee.rejectionReason?.trim()
     ? `<tr><td style="padding:4px 0;color:#991b1b;">Admin Note:</td><td style="padding:4px 0;font-weight:600;color:#7f1d1d;">${escapeHtml(employee.rejectionReason.trim())}</td></tr>`
     : '';
 
   const bodyHtml = `
     <p style="margin-top:0;">Hello <strong>${escapeHtml(employee.name)}</strong>,</p>
-    <p>Your registration request for the <strong>Gatekeeper Employee Portal</strong> was reviewed by an administrator and was <strong>not approved</strong> at this time.</p>
+    <p>Your registration request for the <strong>GateShield Employee Portal</strong> was reviewed by an administrator and was <strong>not approved</strong> at this time.</p>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:18px 0;background-color:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:16px;">
       <tr><td style="padding:4px 0;color:#991b1b;width:140px;">Request Status:</td><td style="padding:4px 0;font-weight:800;color:#dc2626;">NOT APPROVED</td></tr>
       <tr><td style="padding:4px 0;color:#991b1b;">Department:</td><td style="padding:4px 0;font-weight:600;color:#7f1d1d;">${escapeHtml(employee.departmentName)}</td></tr>
@@ -517,7 +517,7 @@ export async function sendEmployeeRejectedEmail(employee: {
   const text = [
     `Hello ${employee.name},`,
     '',
-    'Your registration request for the Gatekeeper Employee Portal was reviewed by an administrator and was not approved at this time.',
+    'Your registration request for the GateShield Employee Portal was reviewed by an administrator and was not approved at this time.',
     '',
     'Request Status: NOT APPROVED',
     `Department: ${employee.departmentName}`,

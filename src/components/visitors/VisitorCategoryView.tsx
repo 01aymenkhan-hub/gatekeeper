@@ -75,7 +75,8 @@ export default function VisitorCategoryView({
     (icon && CATEGORY_ICON_MAP[icon]) ||
     DEFAULT_CATEGORY_ICONS[category] ||
     Users;
-  const { user } = useAuth();
+  const { user, currentGate } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const [visits, setVisits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [gates, setGates] = useState<any[]>([]);
@@ -88,7 +89,9 @@ export default function VisitorCategoryView({
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGate, setSelectedGate] = useState('ALL');
+  const [selectedGate, setSelectedGate] = useState<string>(() =>
+    user?.role === 'OPERATOR' ? currentGate?.id || user?.gates?.[0]?.id || '' : 'ALL'
+  );
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -100,17 +103,30 @@ export default function VisitorCategoryView({
   const [isCheckOutOpen, setIsCheckOutOpen] = useState(false);
   const [selectedBadgeVisit, setSelectedBadgeVisit] = useState<any>(null);
 
-  const loadGates = async () => {
+  const loadGates = useCallback(async () => {
     try {
-      const res = await fetch('/api/gates');
+      const res = await fetch('/api/gates', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        setGates(data.gates || []);
+        const fetchedGates = Array.isArray(data.gates) ? data.gates : [];
+        setGates(fetchedGates);
+        if (user?.role === 'OPERATOR') {
+          if (fetchedGates.length === 0) {
+            setSelectedGate('');
+          } else if (
+            currentGate?.id &&
+            fetchedGates.some((g: { id: string }) => g.id === currentGate.id)
+          ) {
+            setSelectedGate(currentGate.id);
+          } else {
+            setSelectedGate(fetchedGates[0].id);
+          }
+        }
       }
     } catch (e) {
       console.error('Error loading gates:', e);
     }
-  };
+  }, [user?.role, currentGate?.id]);
 
   const fetchVisits = useCallback(async () => {
     setLoading(true);
@@ -118,7 +134,11 @@ export default function VisitorCategoryView({
       const params = new URLSearchParams();
       if (category !== 'ALL') params.set('category', category);
       if (searchQuery.trim()) params.set('q', searchQuery.trim());
-      if (selectedGate !== 'ALL') params.set('gateId', selectedGate);
+      if (selectedGate && selectedGate !== 'ALL') {
+        params.set('gateId', selectedGate);
+      } else if (user?.role === 'OPERATOR' && currentGate?.id) {
+        params.set('gateId', currentGate.id);
+      }
       if (selectedStatus !== 'ALL') params.set('status', selectedStatus);
       if (dateFrom) params.set('dateFrom', dateFrom);
       if (dateTo) params.set('dateTo', dateTo);
@@ -136,11 +156,11 @@ export default function VisitorCategoryView({
     } finally {
       setLoading(false);
     }
-  }, [category, searchQuery, selectedGate, selectedStatus, dateFrom, dateTo, page]);
+  }, [category, searchQuery, selectedGate, selectedStatus, dateFrom, dateTo, page, user?.role, currentGate?.id]);
 
   useEffect(() => {
     loadGates();
-  }, []);
+  }, [loadGates]);
 
   useEffect(() => {
     fetchVisits();
@@ -246,7 +266,8 @@ export default function VisitorCategoryView({
 
             <button
               onClick={() => setIsCheckInOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
+              disabled={!isAdmin && gates.length === 0 && !currentGate}
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>+ Register Entry</span>
@@ -275,9 +296,13 @@ export default function VisitorCategoryView({
               <select
                 value={selectedGate}
                 onChange={(e) => setSelectedGate(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none cursor-pointer"
+                disabled={!isAdmin && gates.length <= 1}
+                className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none cursor-pointer disabled:opacity-90"
               >
-                <option value="ALL">All Gates</option>
+                {isAdmin && <option value="ALL">All Gates</option>}
+                {!isAdmin && gates.length === 0 && (
+                  <option value="">No Gate Assigned</option>
+                )}
                 {gates.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
