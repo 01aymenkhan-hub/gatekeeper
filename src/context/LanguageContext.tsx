@@ -49,10 +49,10 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   vip_guest_desc: { en: 'VIP arrival & vehicle check-in', ur: 'وی آئی پی آمد اور گاڑی چیک اِن' },
 
   // Action Buttons
-  add_visitor_btn: { en: '+ Add Visitor', ur: '+ نیا وزیٹر' },
+  add_visitor_btn: { en: 'Add Visitor', ur: 'نیا وزیٹر' },
   checkout_btn: { en: 'Check Out', ur: 'چھٹی کریں' },
   status_btn: { en: 'Check Status', ur: 'تفصیل دیکھیں' },
-  vendor_btn: { en: '+ Vendor', ur: '+ وینڈر' },
+  vendor_btn: { en: 'Vendor', ur: 'وینڈر' },
   view_pass: { en: 'View Pass', ur: 'پاس دیکھیں' },
   view_all: { en: 'View All', ur: 'سب دیکھیں' },
   close: { en: 'Close', ur: 'بند کریں' },
@@ -379,7 +379,7 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   reg_card_badge_no: { en: 'Visitor Card #', ur: 'وزیٹر کارڈ نمبر' },
   reg_visit_to: { en: 'Visit To', ur: 'ملاقات' },
   reg_entry_gate: { en: 'Entry Gate', ur: 'انٹری گیٹ' },
-  register_next_visitor_btn: { en: '+ Register Next Visitor', ur: '+ اگلا وزیٹر درج کریں' },
+  register_next_visitor_btn: { en: 'Register Next Visitor', ur: 'اگلا وزیٹر درج کریں' },
   collect_physical_card_label: {
     en: 'Collect Physical Visitor Card:',
     ur: 'وزیٹر سے یہ کارڈ واپس لیں:',
@@ -712,8 +712,12 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
 
   // ── Parcel Management & Unexpected Parcel Form ──
   parcel_management_title: { en: 'Parcel Tracker', ur: 'پارسل ٹریکر' },
-  register_unexpected_parcel: { en: '+ Unexpected Parcel', ur: '+ غیر متوقع پارسل' },
+  register_unexpected_parcel: { en: 'Unexpected Parcel', ur: 'غیر متوقع پارسل' },
   unexpected_parcel_title: { en: 'Unexpected Parcel', ur: 'غیر متوقع پارسل' },
+  parcel_tab_expected_short: { en: 'Expected', ur: 'متوقع' },
+  parcel_tab_received_short: { en: 'Received', ur: 'موصول' },
+  parcel_tab_delivered_short: { en: 'Delivered', ur: 'حوالے' },
+  parcel_tab_all_short: { en: 'History', ur: 'ریکارڈ' },
   employee_label: { en: 'Employee', ur: 'ملازم' },
   select_employee_placeholder: { en: 'Select Employee', ur: 'ملازم منتخب کریں' },
   search_employee_placeholder: { en: 'Search employee name...', ur: 'ملازم کا نام تلاش کریں...' },
@@ -747,7 +751,7 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
 
   // ── VIP Guest List & Management ──
   vip_guest_list_title: { en: 'VIP Guest List', ur: 'وی آئی پی مہمانوں کی فہرست' },
-  add_vip_guest_btn: { en: '+ Add VIP Guest', ur: '+ نیا وی آئی پی مہمان' },
+  add_vip_guest_btn: { en: 'Add VIP Guest', ur: 'نیا وی آئی پی مہمان' },
   edit_vip_guest_title: { en: 'Edit VIP Guest', ur: 'وی آئی پی مہمان میں ترمیم' },
   new_vip_guest_title: { en: 'Add VIP Guest', ur: 'نیا وی آئی پی مہمان شامل کریں' },
   vip_name_label: { en: 'VIP Name', ur: 'وی آئی پی مہمان کا نام' },
@@ -767,6 +771,54 @@ const TRANSLATIONS: Record<string, Record<Language, string>> = {
   update_vip_btn: { en: 'Update VIP Guest', ur: 'وی آئی پی اپ ڈیٹ کریں' },
   cancel_btn: { en: 'Cancel', ur: 'منسوخ کریں' },
   no_vip_found: { en: 'No VIP guests found.', ur: 'کوئی وی آئی پی مہمان نہیں ملا۔' },
+
+  // ── Operator Login Screen (QR & Email/Password Screens) ──
+  login_with_email_link: { en: 'Login with Email', ur: 'ای میل کے ذریعے لاگ ان کریں' },
+  login_with_qr_link: { en: 'Login with QR Code', ur: 'کیو آر کوڈ کے ذریعے لاگ ان کریں' },
+  operator_email_login_subtitle: {
+    en: 'Sign in using your approved Operator email and password',
+    ur: 'اپنے منظور شدہ آپریٹر ای میل اور پاس ورڈ کے ذریعے لاگ ان کریں',
+  },
+  operator_email_label: { en: 'Operator Email', ur: 'آپریٹر ای میل' },
+  operator_password_label: { en: 'Password', ur: 'پاس ورڈ' },
+  operator_password_placeholder: { en: 'Enter your password', ur: 'اپنا پاس ورڈ درج کریں' },
+  signing_in_btn: { en: 'Signing in...', ur: 'لاگ ان ہو رہا ہے...' },
+  login_to_operator_dashboard_btn: {
+    en: 'Login to Operator Dashboard',
+    ur: 'آپریٹر ڈیش بورڈ میں لاگ ان کریں',
+  },
+  no_operator_account_prompt: {
+    en: "Don't have an Operator account yet?",
+    ur: 'کیا آپ کا آپریٹر اکاؤنٹ ابھی نہیں بنا؟',
+  },
+  register_as_operator_btn: { en: 'Register as Operator', ur: 'بطور آپریٹر رجسٹر کریں' },
+  register_operator_subtitle: {
+    en: 'Submit your operator account request for Administrator approval',
+    ur: 'ایڈمن کی منظوری کے لیے اپنے آپریٹر اکاؤنٹ کی درخواست جمع کروائیں',
+  },
+  operator_request_status_title: {
+    en: 'Operator Request Status',
+    ur: 'آپریٹر درخواست کی حیثیت',
+  },
+  operator_request_status_subtitle: {
+    en: 'Live status of your Operator registration request',
+    ur: 'آپ کی آپریٹر رجسٹریشن درخواست کی موجودہ صورتحال',
+  },
+  operator_name_label: { en: 'Operator Name', ur: 'آپریٹر کا نام' },
+  operator_name_placeholder: {
+    en: 'Full Name (e.g. Officer Bilal)',
+    ur: 'پورا نام (مثلاً آفیسر بلال)',
+  },
+  email_address_label: { en: 'Email Address', ur: 'ای میل ایڈریس' },
+  confirm_password_label: { en: 'Confirm Password', ur: 'پاس ورڈ کی تصدیق کریں' },
+  min_6_chars_placeholder: { en: 'Min 6 chars', ur: 'کم از کم 6 حروف' },
+  reenter_password_placeholder: { en: 'Re-enter password', ur: 'پاس ورڈ دوبارہ درج کریں' },
+  submitting_request_btn: { en: 'Submitting Request...', ur: 'درخواست جمع ہو رہی ہے...' },
+  submit_registration_request_btn: {
+    en: 'Submit Registration Request',
+    ur: 'رجسٹریشن کی درخواست جمع کروائیں',
+  },
+  back_to_login_btn: { en: 'Back to Login', ur: 'واپس لاگ ان پر جائیں' },
 };
 
 const LanguageContext = createContext<LanguageContextType>({
@@ -796,7 +848,10 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.lang = language;
-      document.documentElement.dir = language === 'ur' ? 'rtl' : 'ltr';
+      // Keep structural layout direction fixed as LTR so UI elements, logos, headers,
+      // sidebars, cards, and buttons never flip or mirror positions when switching languages.
+      document.documentElement.dir = 'ltr';
+      document.documentElement.dataset.lang = language;
     }
   }, [language]);
 

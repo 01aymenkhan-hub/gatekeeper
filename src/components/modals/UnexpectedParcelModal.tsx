@@ -245,18 +245,18 @@ export default function UnexpectedParcelModal({
 
   return (
     <div
-      dir={isUrdu ? 'rtl' : 'ltr'}
+      dir="ltr"
       className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
     >
       <div className="w-full max-w-xl rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden my-auto animate-in fade-in-0 zoom-in-95">
         {/* Header — Consistent GateShield Blue Theme */}
         <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center shrink-0">
               <Package className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-extrabold leading-tight">
+            <div className={`min-w-0 flex-1 ${isUrdu ? 'text-right' : 'text-left'}`}>
+              <h2 dir="auto" className="text-base sm:text-lg font-extrabold leading-tight truncate">
                 {confirmedParcel
                   ? isUrdu
                     ? 'پارسل وصولی کی تصدیق'
@@ -272,7 +272,7 @@ export default function UnexpectedParcelModal({
               resetForm();
               onClose();
             }}
-            className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white cursor-pointer"
+            className="p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white cursor-pointer shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
@@ -403,18 +403,12 @@ export default function UnexpectedParcelModal({
                 {t('employee_label', 'Employee')} *
               </label>
               <div className="relative">
-                <User
-                  className={`w-4 h-4 text-slate-400 absolute ${
-                    isUrdu ? 'right-3.5' : 'left-3.5'
-                  } top-1/2 -translate-y-1/2 pointer-events-none`}
-                />
+                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <select
                   required
                   value={selectedEmployeeId}
                   onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                  className={`w-full ${
-                    isUrdu ? 'pr-10 pl-3.5' : 'pl-10 pr-3.5'
-                  } py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">
                     {t('select_employee_placeholder', 'Select Employee')}

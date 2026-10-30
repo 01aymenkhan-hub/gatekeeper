@@ -23,6 +23,7 @@ import {
   HardHat,
   Truck,
   Trash2,
+  Plus,
   type LucideIcon,
 } from 'lucide-react';
 import CheckInModal from '@/components/modals/CheckInModal';
@@ -269,8 +270,8 @@ export default function VisitorCategoryView({
               disabled={!isAdmin && gates.length === 0 && !currentGate}
               className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-sm shadow-blue-500/20 transition-all cursor-pointer"
             >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>+ Register Entry</span>
+              <Plus className="w-3.5 h-3.5 shrink-0" />
+              <span>Register Entry</span>
             </button>
           </div>
         </div>

@@ -24,6 +24,7 @@ import {
   X,
   Package,
   Crown,
+  Plus,
 } from 'lucide-react';
 import {
   IconRegisterVisitor,
@@ -281,8 +282,8 @@ export default function DashboardPage() {
                 onClick={() => openCheckIn('VENDOR')}
                 className="hidden sm:flex sm:flex-initial items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold shadow-md transition-all cursor-pointer min-h-[42px] whitespace-nowrap"
               >
-                <Briefcase className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>+ {t('vendors', 'Vendor')}</span>
+                <Plus className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{t('vendors', 'Vendor')}</span>
               </button>
 
               {/* Mobile Row 2: Add Visitor (100% full width on mobile) | Tablet/Desktop: inline flex button */}
@@ -291,8 +292,8 @@ export default function DashboardPage() {
                 onClick={() => openCheckIn('VISITOR')}
                 className="w-full sm:w-auto sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-extrabold shadow-md transition-all cursor-pointer min-h-[42px] whitespace-nowrap"
               >
-                <UserPlus className="w-4 h-4 shrink-0" />
-                <span>{t('add_visitor_btn', '+ Add Visitor')}</span>
+                <Plus className="w-4 h-4 shrink-0" />
+                <span>{t('add_visitor_btn', 'Add Visitor')}</span>
               </button>
             </div>
           </div>

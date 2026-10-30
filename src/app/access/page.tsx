@@ -22,6 +22,7 @@ import {
   Eye,
   Phone,
   Mail,
+  Plus,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import OperatorQrCardModal, { OperatorQrCardData } from '@/components/modals/OperatorQrCardModal';
@@ -521,8 +522,8 @@ export default function AccessManagementPage() {
               onClick={handleOpenCreate}
               className="flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-500/20 transition-all cursor-pointer shrink-0"
             >
-              <UserPlus className="w-4 h-4" />
-              <span>+ Add Operator / Admin</span>
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>Add Operator / Admin</span>
             </button>
           </div>
 

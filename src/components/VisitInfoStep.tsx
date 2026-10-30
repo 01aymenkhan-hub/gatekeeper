@@ -566,12 +566,15 @@ export default function VisitInfoStep({
                     e.preventDefault();
                     handleSelectHostOption(host);
                   }}
-                  className={`w-full px-3.5 py-2.5 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 hover:bg-blue-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors cursor-pointer ${
-                    isUr ? "flex-row-reverse text-right" : "flex-row text-left"
-                  }`}
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 hover:bg-blue-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors cursor-pointer"
                 >
                   <User className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                  <span className="truncate">{host}</span>
+                  <span
+                    dir="auto"
+                    className={`truncate flex-1 ${isUr ? "text-right" : "text-left"}`}
+                  >
+                    {host}
+                  </span>
                 </button>
               ))}
             </div>
@@ -643,11 +646,11 @@ export default function VisitInfoStep({
       {!isFormValid && (
         <div
           className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 text-amber-800 dark:text-amber-200 text-xs font-bold ${
-            isUr ? "flex-row-reverse text-right" : "flex-row text-left"
+            isUr ? "text-right" : "text-left"
           }`}
         >
           <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-          <span>
+          <span dir="auto" className="flex-1">
             {!isMeetNameValid
               ? t("missing_meet_name_hint", "Please enter or select Visitor to Meet")
               : t("missing_department_hint", "Please select a Department to continue")}

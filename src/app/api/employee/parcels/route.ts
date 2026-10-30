@@ -140,14 +140,6 @@ export async function POST(request: NextRequest) {
       typeof body.ownerPhone === 'string' && body.ownerPhone.trim()
         ? body.ownerPhone.trim()
         : emp.phoneNumber || '';
-    const departmentIdInput =
-      typeof body.departmentId === 'string' && body.departmentId.trim()
-        ? body.departmentId.trim()
-        : emp.departmentId || '';
-    const departmentNameInput =
-      typeof body.department === 'string' && body.department.trim()
-        ? body.department.trim()
-        : emp.departmentName || '';
     const notes =
       typeof body.notes === 'string' && body.notes.trim()
         ? body.notes.trim()
@@ -193,28 +185,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve department from Admin-managed departments or employee's registered profile
-    let resolvedDeptId: string | null = emp.departmentId || null;
-    let resolvedDeptName = emp.departmentName || '';
+    // Strictly derive department from the authenticated employee's registered database profile.
+    // Ignore any departmentId/department submitted in the frontend request payload.
+    const profileRows = await prisma.$queryRaw<
+      Array<{
+        departmentId: string | null;
+        verifiedDeptId: string | null;
+        verifiedDeptName: string | null;
+        registeredDeptName: string | null;
+      }>
+    >`
+      SELECT
+        u."departmentId",
+        d."id" AS "verifiedDeptId",
+        d."name" AS "verifiedDeptName",
+        NULLIF(BTRIM(u."departmentName"), '') AS "registeredDeptName"
+      FROM "users" u
+      LEFT JOIN "departments" d ON d."id" = u."departmentId"
+      WHERE u."id" = ${emp.id}
+      LIMIT 1
+    `;
 
-    if (departmentIdInput) {
-      const deptRows = await prisma.$queryRaw<
-        Array<{ id: string; name: string }>
-      >`
-        SELECT "id", "name"
-        FROM "departments"
-        WHERE "id" = ${departmentIdInput}
-        LIMIT 1
-      `;
-      if (deptRows.length > 0) {
-        resolvedDeptId = deptRows[0].id;
-        resolvedDeptName = deptRows[0].name;
-      }
-    }
+    const profile = profileRows[0];
+    let resolvedDeptId: string | null = profile?.verifiedDeptId || null;
+    let resolvedDeptName: string = profile?.verifiedDeptName?.trim() || '';
 
-    if (!resolvedDeptName && departmentNameInput) {
-      const normalized = departmentNameInput.toLowerCase().replace(/\s+/g, ' ');
-      const deptRows = await prisma.$queryRaw<
+    if (!resolvedDeptName && profile?.registeredDeptName) {
+      const normalized = profile.registeredDeptName.toLowerCase().replace(/\s+/g, ' ');
+      const matchedDeptRows = await prisma.$queryRaw<
         Array<{ id: string; name: string }>
       >`
         SELECT "id", "name"
@@ -222,17 +220,21 @@ export async function POST(request: NextRequest) {
         WHERE "normalizedName" = ${normalized}
         LIMIT 1
       `;
-      if (deptRows.length > 0) {
-        resolvedDeptId = deptRows[0].id;
-        resolvedDeptName = deptRows[0].name;
+      if (matchedDeptRows.length > 0) {
+        resolvedDeptId = matchedDeptRows[0].id;
+        resolvedDeptName = matchedDeptRows[0].name;
       } else {
-        resolvedDeptName = departmentNameInput;
+        resolvedDeptName = profile.registeredDeptName;
       }
     }
 
     if (!resolvedDeptName) {
       return NextResponse.json(
-        { error: 'Please select a Department.', field: 'departmentId' },
+        {
+          error:
+            'Your employee profile does not have a valid department assigned. Please contact an Administrator.',
+          field: 'departmentId',
+        },
         { status: 400 }
       );
     }

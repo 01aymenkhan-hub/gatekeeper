@@ -802,17 +802,18 @@ export default function VisitorStep({
               </div>
 
               <div
-                className={`flex-1 w-full space-y-2.5 text-center sm:text-left ${
+                className={`flex-1 w-full space-y-2.5 text-center ${
                   isUr ? "sm:text-right" : "sm:text-left"
                 }`}
               >
-                <div
-                  className={`flex items-center justify-center sm:justify-start gap-2 ${
-                    isUr ? "sm:flex-row-reverse" : "sm:flex-row"
-                  }`}
-                >
+                <div className="flex items-center justify-center sm:justify-start gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white">
+                  <span
+                    dir="auto"
+                    className={`text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex-1 ${
+                      isUr ? "sm:text-right" : "sm:text-left"
+                    }`}
+                  >
                     {t("photo_confirmed_title", "Visitor Photo Captured")}
                   </span>
                 </div>
@@ -892,22 +893,27 @@ export default function VisitorStep({
       {/* 1. Phone Number Section (Optional) */}
       <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
         <div className={`mb-2 ${isUr ? "text-right" : "text-left"}`}>
-          <div
-            className={`flex items-center gap-2 flex-wrap ${
-              isUr ? "flex-row-reverse" : "flex-row"
-            }`}
-          >
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <label
               htmlFor="visitorPhoneNumber"
-              className="block text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight"
+              dir="auto"
+              className={`block text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight flex-1 ${
+                isUr ? "text-right" : "text-left"
+              }`}
             >
               {t("phone_number_label", "Phone Number")}
             </label>
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md uppercase tracking-wider">
+            <span
+              dir="auto"
+              className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0"
+            >
               {t("optional_badge", "Optional")}
             </span>
           </div>
-          <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+          <p
+            dir="auto"
+            className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5"
+          >
             {t("phone_number_hint", "11-digit mobile number starting with 03 (e.g. 03001234567)")}
           </p>
         </div>
@@ -931,6 +937,7 @@ export default function VisitorStep({
           <input
             id="visitorPhoneNumber"
             type="tel"
+            dir="ltr"
             inputMode="numeric"
             pattern="03[0-9]{9}"
             maxLength={11}
@@ -950,11 +957,11 @@ export default function VisitorStep({
         {hasPhoneValue && !isPhoneValid && (
           <p
             className={`text-xs font-bold text-red-600 dark:text-red-400 mt-1.5 flex items-center gap-1.5 ${
-              isUr ? "flex-row-reverse text-right" : "flex-row text-left"
+              isUr ? "text-right" : "text-left"
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            <span>
+            <span dir="auto" className="flex-1">
               {t(
                 "phone_number_error",
                 "Please enter a valid 11-digit mobile number starting with 03."
@@ -969,12 +976,16 @@ export default function VisitorStep({
         <div className={`mb-2 ${isUr ? "text-right" : "text-left"}`}>
           <label
             htmlFor="visitorCardNo"
+            dir="auto"
             className="block text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight"
           >
             {t("visitor_card_no_label", "Visitor Card Number")}{" "}
             <span className="text-red-500">*</span>
           </label>
-          <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+          <p
+            dir="auto"
+            className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5"
+          >
             {t(
               "visitor_card_no_hint",
               "Enter the physical card number handed to the visitor (e.g. VC-12)"
@@ -990,6 +1001,7 @@ export default function VisitorStep({
             <input
               id="visitorCardNo"
               type="text"
+              dir="ltr"
               value={visitorData.visitorCardNo}
               onChange={handleCardNoChange}
               placeholder={t("visitor_card_no_placeholder", "e.g. VC-12 or 104")}
@@ -1011,11 +1023,11 @@ export default function VisitorStep({
           {cardAvailability === "taken" && (
             <div
               className={`p-3 rounded-xl bg-red-50 dark:bg-red-950/50 border-2 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 flex items-center gap-2.5 animate-in fade-in duration-150 ${
-                isUr ? "flex-row-reverse text-right" : "flex-row text-left"
+                isUr ? "text-right" : "text-left"
               }`}
             >
               <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
-              <p className="text-xs sm:text-sm font-extrabold leading-snug">
+              <p dir="auto" className="text-xs sm:text-sm font-extrabold leading-snug flex-1">
                 {t(
                   "visitor_card_already_assigned",
                   "This card is already assigned. Please choose another available card."
@@ -1025,22 +1037,20 @@ export default function VisitorStep({
           )}
 
           {cardAvailability === "available" && normalizedCardDisplay && (
-            <div
-              className={`px-3 py-2 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 flex items-center justify-between gap-2 ${
-                isUr ? "flex-row-reverse" : "flex-row"
-              }`}
-            >
-              <div
-                className={`flex items-center gap-1.5 ${
-                  isUr ? "flex-row-reverse" : "flex-row"
-                }`}
-              >
+            <div className="px-3 py-2 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/80 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200">
+                <span
+                  dir="auto"
+                  className="text-xs font-bold text-emerald-800 dark:text-emerald-200"
+                >
                   {t("visitor_card_available_badge", "Assigned Physical Card:")}
                 </span>
               </div>
-              <span className="text-xs sm:text-sm font-mono font-extrabold px-2.5 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shadow-2xs">
+              <span
+                dir="ltr"
+                className="text-xs sm:text-sm font-mono font-extrabold px-2.5 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shadow-2xs"
+              >
                 {normalizedCardDisplay}
               </span>
             </div>
@@ -1050,25 +1060,28 @@ export default function VisitorStep({
 
       {/* 3. Carrying Items Section (Optional, Compact) */}
       <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xs">
-        <div
-          className={`flex items-center justify-between gap-3 ${
-            isUr ? "flex-row-reverse" : "flex-row"
-          }`}
-        >
-          <div className={isUr ? "text-right" : "text-left"}>
-            <div
-              className={`flex items-center gap-2 flex-wrap ${
-                isUr ? "flex-row-reverse" : "flex-row"
-              }`}
-            >
-              <h2 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">
+        <div className="flex items-center justify-between gap-3">
+          <div className={`flex-1 ${isUr ? "text-right" : "text-left"}`}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2
+                dir="auto"
+                className={`text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white tracking-tight flex-1 ${
+                  isUr ? "text-right" : "text-left"
+                }`}
+              >
                 {t("carrying_items_title", "Carrying Items")}
               </h2>
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md uppercase tracking-wider">
+              <span
+                dir="auto"
+                className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0"
+              >
                 {t("optional_badge", "Optional")}
               </span>
             </div>
-            <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+            <p
+              dir="auto"
+              className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5"
+            >
               {t(
                 "carrying_items_subtitle",
                 "Turn on if the visitor has a laptop, bag, or tools"
@@ -1107,6 +1120,7 @@ export default function VisitorStep({
           <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 animate-in fade-in duration-200 space-y-1.5">
             <label
               htmlFor="carriedItemsInput"
+              dir="auto"
               className={`block text-xs font-bold text-slate-700 dark:text-slate-300 ${
                 isUr ? "text-right" : "text-left"
               }`}
@@ -1115,6 +1129,7 @@ export default function VisitorStep({
             </label>
             <textarea
               id="carriedItemsInput"
+              dir="auto"
               rows={2}
               value={visitorData.belongings || ""}
               onChange={(e) =>
@@ -1136,11 +1151,13 @@ export default function VisitorStep({
       {submissionStatus === "error" && submissionError && (
         <div
           className={`bg-red-50 dark:bg-red-950/60 border-2 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2.5 ${
-            isUr ? "flex-row-reverse text-right" : "flex-row text-left"
+            isUr ? "text-right" : "text-left"
           }`}
         >
           <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
-          <p className="font-extrabold">{submissionError}</p>
+          <p dir="auto" className="font-extrabold flex-1">
+            {submissionError}
+          </p>
         </div>
       )}
 

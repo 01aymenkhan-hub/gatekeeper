@@ -296,3 +296,54 @@ body {
     display: none !important;
   }
 }
+
+/* ========================================================================== */
+/* Bilingual (Urdu / English) Fixed-Layout & Natural Text Direction Rules     */
+/* ========================================================================== */
+/*
+ * Core principle: Structural layout (`dir="ltr"`) stays identical in both
+ * languages so logos, buttons, navigation, sidebars, cards, and grids never
+ * flip or swap positions. Only text rendering direction and text alignment
+ * adapt when Urdu (`html[lang="ur"]`) is active.
+ */
+html[lang="ur"] h1,
+html[lang="ur"] h2,
+html[lang="ur"] h3,
+html[lang="ur"] h4,
+html[lang="ur"] h5,
+html[lang="ur"] h6,
+html[lang="ur"] p,
+html[lang="ur"] span,
+html[lang="ur"] label,
+html[lang="ur"] th,
+html[lang="ur"] td,
+html[lang="ur"] li,
+html[lang="ur"] option,
+html[lang="ur"] button,
+html[lang="ur"] a {
+  unicode-bidi: plaintext;
+}
+
+html[lang="ur"] label:not(.text-center),
+html[lang="ur"] .text-start {
+  text-align: right;
+}
+
+html[lang="ur"]
+  input:not([type="email"]):not([type="password"]):not([type="tel"]):not([type="url"]):not([type="number"]):not([type="date"]):not([type="time"]):not([type="datetime-local"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.font-mono):not(.text-center),
+html[lang="ur"] textarea:not(.text-center) {
+  unicode-bidi: plaintext;
+  text-align: right;
+}
+
+html[lang="ur"] input[type="email"],
+html[lang="ur"] input[type="password"],
+html[lang="ur"] input[type="tel"],
+html[lang="ur"] input[type="number"],
+html[lang="ur"] input[type="date"],
+html[lang="ur"] input[type="time"],
+html[lang="ur"] input[type="datetime-local"],
+html[lang="ur"] input.font-mono {
+  direction: ltr;
+  text-align: left;
+}

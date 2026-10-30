@@ -241,16 +241,16 @@ export default function GatekeeperLoader({
         role="status"
         aria-live="polite"
         className={`inline-flex items-center gap-3 px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700 ${
-          isUr ? 'flex-row-reverse text-right' : 'flex-row text-left'
+          isUr ? 'text-right' : 'text-left'
         }`}
       >
         <GateShieldAnimatedMark isDark={isDark} sizeClassName="w-7 h-7" />
         <div className="min-w-0">
-          <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+          <p dir="auto" className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
             {resolvedTitle}
           </p>
           {subtitle && (
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+            <p dir="auto" className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
               {subtitle}
             </p>
           )}

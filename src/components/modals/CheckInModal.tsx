@@ -8,6 +8,7 @@ import {
   Upload,
   ArrowLeft,
   ArrowRight,
+  Plus,
 } from 'lucide-react';
 import VisitInfoStep from '../VisitInfoStep';
 import CnicScanner from '../CnicScanner';
@@ -663,9 +664,10 @@ export default function CheckInModal({
                   <button
                     type="button"
                     onClick={() => setIsUnexpectedParcelOpen(true)}
-                    className="text-xs font-extrabold px-2.5 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white cursor-pointer"
+                    className="text-xs font-extrabold px-2.5 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white cursor-pointer inline-flex items-center gap-1"
                   >
-                    + Register Parcel
+                    <Plus className="w-3.5 h-3.5 shrink-0" />
+                    <span>Register Parcel</span>
                   </button>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -678,14 +680,16 @@ export default function CheckInModal({
 
               <button
                 onClick={onClose}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0 cursor-pointer"
+                title={t('close', 'Close')}
+                aria-label={t('close', 'Close')}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
           ) : (
-            <div className="px-4 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 shrink-0">
-              <div className={isUr ? 'text-right' : 'text-left'}>
+            <div className="px-4 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-900/50 shrink-0">
+              <div className={`min-w-0 ${isUr ? 'text-right' : 'text-left'}`}>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base">
                     {getOperatorStepTitle(operatorStep)}
@@ -704,14 +708,15 @@ export default function CheckInModal({
                 </p>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => {
                     handleResetAll();
                     onClose();
                   }}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer shrink-0 transition-colors"
                   title={t('close', 'Close')}
+                  aria-label={t('close', 'Close')}
                 >
                   <X className="w-5 h-5" />
                 </button>
